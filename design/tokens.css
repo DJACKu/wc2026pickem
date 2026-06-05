@@ -1,0 +1,49 @@
+/* ============================================================
+   PICK'EM WC26 — Design tokens
+   Warm-dark, editorial, sports almanac × pick'em esport
+   ============================================================ */
+
+:root {
+  /* Warm dark — NOT navy. Près d'une encre d'imprimerie, tirée chaud */
+  --ink-0:   #08070A;   /* deepest */
+  --ink-1:   #0F0D0C;   /* page bg */
+  --ink-2:   #16130F;   /* elevated bg */
+  --ink-3:   #1F1A15;   /* card bg */
+  --ink-4:   #2A231C;   /* card hover / divider strong */
+  --ink-5:   #3A3128;   /* muted line */
+
+  /* Paper — off-white légèrement chaud, presque papier journal */
+  --paper-1: #F5EFE4;   /* primary text on dark */
+  --paper-2: #C9C0B0;   /* secondary text */
+  --paper-3: #8A8174;   /* tertiary / meta */
+  --paper-4: #5B5347;   /* very muted */
+
+  /* Lignes & overlays */
+  --line:        rgba(245, 239, 228, 0.08);
+  --line-strong: rgba(245, 239, 228, 0.14);
+  --line-soft:   rgba(245, 239, 228, 0.04);
+
+  /* Tricolore WC26 (parcimonieux) */
+  --canada:    #E8112D;   /* rouge — danger, deadline, finale */
+  --mexico:    #2EB872;   /* vert — succès, qualifié, LOCK */
+  --usa:       #2563EB;   /* bleu — info, équipe, USA */
+  --canada-d:  #B70E25;
+  --mexico-d:  #1F8F58;
+  --usa-d:     #1D4ED8;
+
+  /* Bonus accent — ocre/jaune pour bonus 3èmes & highlights éditoriaux */
+  --gold:      #D4A547;
+
+  /* Typo */
+  --font-display: 'Instrument Serif', 'Georgia', serif;
+  --font-ui:      'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+}
+
+/* Reset léger — appliqué sur tout */
+* { box-sizing: border-box; }
