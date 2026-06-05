@@ -7,7 +7,7 @@ import { timeUntil, pad2 } from "@/lib/format";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Display } from "@/components/ui/Display";
 import { TeamFlag } from "@/components/ui/TeamFlag";
-import { XIcon } from "@/components/ui/icons";
+import { SignInButton } from "@/components/SignInButton";
 
 export const dynamic = "force-dynamic";
 
@@ -63,10 +63,7 @@ export default async function Home() {
                 Faire mes picks →
               </Link>
             ) : (
-              <Link href="/api/auth/signin" className="btn btn-primary btn-lg">
-                <XIcon />
-                Continuer avec X
-              </Link>
+              <SignInButton size="lg">Continuer avec X</SignInButton>
             )}
             <span className="font-mono text-[11px] tracking-[0.08em] leading-[1.4] text-[color:var(--paper-3)] max-w-[220px]">
               On lit ton handle, ton avatar — rien d&rsquo;autre.
