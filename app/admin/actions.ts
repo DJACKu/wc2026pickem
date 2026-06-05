@@ -12,6 +12,7 @@ import {
   phaseStatusEnum,
   phases,
   resultsGroupStandings,
+  teams,
 } from "@/db";
 import {
   scoreAllPhases,
@@ -224,6 +225,148 @@ export async function setMatchTeams(formData: FormData) {
     })
     .where(eq(matches.id, data.matchId));
   revalidatePath("/admin/matches");
+}
+
+/* Sync depuis football-data.org : pull tout le bracket KO en une fois et
+   upsert dans `matches`. Respecte `manual_override` : si tu as déjà saisi
+   une affiche à la main, elle n'est pas écrasée. Idempotent — relançable. */
+
+type FdMatch = {
+  id: number;
+  utcDate: string;
+  status: string;
+  stage: string;
+  homeTeam?: { tla?: string | null; shortName?: string | null };
+  awayTeam?: { tla?: string | null; shortName?: string | null };
+  score?: {
+    fullTime?: { home: number | null; away: number | null };
+    winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
+  };
+};
+
+const FD_STAGE_TO_PHASE: Record<string, "r32" | "r16" | "qf" | "sf" | "final"> = {
+  LAST_32: "r32",
+  ROUND_OF_32: "r32",
+  LAST_16: "r16",
+  ROUND_OF_16: "r16",
+  QUARTER_FINALS: "qf",
+  QUARTER_FINAL: "qf",
+  SEMI_FINALS: "sf",
+  SEMI_FINAL: "sf",
+  THIRD_PLACE: "final",
+  THIRD_PLACE_PLAY_OFF: "final",
+  FINAL: "final",
+};
+
+export async function syncBracketFromFootballData() {
+  await requireAdmin();
+  const token = process.env.FOOTBALL_DATA_TOKEN;
+  if (!token) {
+    throw new Error(
+      "FOOTBALL_DATA_TOKEN absent — ajoute la clé dans Vercel → Settings → Environment Variables.",
+    );
+  }
+
+  const res = await fetch(
+    "https://api.football-data.org/v4/competitions/WC/matches",
+    {
+      headers: { "X-Auth-Token": token },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) {
+    throw new Error(
+      `football-data API ${res.status} — ${await res.text().catch(() => "")}`,
+    );
+  }
+  const payload = (await res.json()) as { matches?: FdMatch[] };
+  const incoming = payload.matches ?? [];
+
+  const ourTeams = new Set(
+    (await db.select({ id: teams.id }).from(teams)).map((t) => t.id),
+  );
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  let teamLookupMisses = 0;
+
+  for (const fd of incoming) {
+    const phaseId = FD_STAGE_TO_PHASE[fd.stage];
+    if (!phaseId) continue; // group stage, ignore
+
+    const matchId = `fd-${fd.id}`;
+
+    const homeTla = fd.homeTeam?.tla?.toUpperCase() ?? null;
+    const awayTla = fd.awayTeam?.tla?.toUpperCase() ?? null;
+    const homeId = homeTla && ourTeams.has(homeTla) ? homeTla : null;
+    const awayId = awayTla && ourTeams.has(awayTla) ? awayTla : null;
+    if (homeTla && !homeId) teamLookupMisses++;
+    if (awayTla && !awayId) teamLookupMisses++;
+
+    const kickoff = fd.utcDate ? new Date(fd.utcDate) : null;
+
+    const winnerHome = fd.score?.winner === "HOME_TEAM";
+    const winnerAway = fd.score?.winner === "AWAY_TEAM";
+    const winnerId = winnerHome ? homeId : winnerAway ? awayId : null;
+    const status: "scheduled" | "live" | "finished" =
+      fd.status === "FINISHED"
+        ? "finished"
+        : fd.status === "IN_PLAY" || fd.status === "PAUSED"
+          ? "live"
+          : "scheduled";
+
+    const [existing] = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.id, matchId))
+      .limit(1);
+
+    if (existing) {
+      if (existing.manualOverride) {
+        skipped++;
+        continue;
+      }
+      await db
+        .update(matches)
+        .set({
+          phaseId,
+          homeTeamId: homeId,
+          awayTeamId: awayId,
+          kickoffAt: kickoff,
+          homeScore: fd.score?.fullTime?.home ?? null,
+          awayScore: fd.score?.fullTime?.away ?? null,
+          winnerId,
+          status,
+        })
+        .where(eq(matches.id, matchId));
+      updated++;
+    } else {
+      await db.insert(matches).values({
+        id: matchId,
+        phaseId,
+        homeTeamId: homeId,
+        awayTeamId: awayId,
+        kickoffAt: kickoff,
+        homeScore: fd.score?.fullTime?.home ?? null,
+        awayScore: fd.score?.fullTime?.away ?? null,
+        winnerId,
+        status,
+      });
+      created++;
+    }
+  }
+
+  console.log(
+    `[syncBracketFromFootballData] created=${created} updated=${updated} skipped=${skipped} teamMisses=${teamLookupMisses}`,
+  );
+
+  revalidatePath("/admin/matches");
+  revalidatePath("/picks/r32");
+  revalidatePath("/picks/r16");
+  revalidatePath("/picks/qf");
+  revalidatePath("/picks/sf");
+  revalidatePath("/picks/final");
 }
 
 /* Bootstrap R32 : crée 16 affiches vides avec dates étalées sur 28 juin

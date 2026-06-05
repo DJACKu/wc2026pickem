@@ -13,6 +13,7 @@ import {
   deleteMatch,
   setMatchResult,
   setMatchTeams,
+  syncBracketFromFootballData,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -45,9 +46,37 @@ export default async function MatchesAdminPage() {
       </Display>
       <p className="mt-3 text-[13px] text-[color:var(--paper-2)] max-w-2xl">
         Crée les affiches KO au fil du tournoi, puis saisis le vainqueur quand
-        le match est terminé. Tout passe par la table <code>matches</code> —
+        le match est terminé. Tout passe par la table <code>matches</code> —{" "}
         <code>manual_override=true</code> protège ta saisie du cron éventuel.
       </p>
+
+      {/* Football-data sync — la solution magique si l'API key est configurée */}
+      <div
+        className="mt-5 p-4 rounded-md flex items-center justify-between gap-4 flex-wrap"
+        style={{
+          background: "var(--ink-2)",
+          border: "1px solid var(--gold)",
+        }}
+      >
+        <div>
+          <div
+            className="font-mono uppercase text-[10.5px]"
+            style={{ letterSpacing: "0.13em", color: "var(--gold)" }}
+          >
+            ⚡ FOOTBALL-DATA · BRACKET COMPLET
+          </div>
+          <div className="text-[13px] text-[color:var(--paper-2)] mt-1 max-w-2xl">
+            Pull tout le bracket KO (R32 → Final + petite finale) depuis
+            football-data.org en 1 click. Respecte{" "}
+            <code>manual_override</code> donc tes saisies à la main sont protégées.
+          </div>
+        </div>
+        <form action={syncBracketFromFootballData}>
+          <button type="submit" className="btn btn-primary btn-md">
+            ⟳ Sync bracket KO
+          </button>
+        </form>
+      </div>
 
       {/* Create form */}
       <form
