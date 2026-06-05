@@ -195,6 +195,75 @@ export async function deleteMatch(formData: FormData) {
   revalidatePath("/admin/matches");
 }
 
+const setTeamsSchema = z.object({
+  matchId: z.string().min(1),
+  homeTeamId: z.string().min(2),
+  awayTeamId: z.string().min(2),
+  kickoffAt: z.string().min(1),
+});
+
+export async function setMatchTeams(formData: FormData) {
+  await requireAdmin();
+  const data = setTeamsSchema.parse({
+    matchId: formData.get("matchId"),
+    homeTeamId: formData.get("homeTeamId"),
+    awayTeamId: formData.get("awayTeamId"),
+    kickoffAt: formData.get("kickoffAt"),
+  });
+  if (data.homeTeamId === data.awayTeamId) {
+    throw new Error("Les deux équipes doivent être différentes.");
+  }
+  const d = new Date(data.kickoffAt);
+  if (isNaN(d.getTime())) throw new Error("Date invalide.");
+  await db
+    .update(matches)
+    .set({
+      homeTeamId: data.homeTeamId,
+      awayTeamId: data.awayTeamId,
+      kickoffAt: d,
+    })
+    .where(eq(matches.id, data.matchId));
+  revalidatePath("/admin/matches");
+}
+
+/* Bootstrap R32 : crée 16 affiches vides avec dates étalées sur 28 juin
+   → 3 juillet 2026 (en UTC, horaires placeholder). L'admin remplira ensuite
+   les équipes via le bouton « Modifier » de chaque ligne, selon le tableau
+   FIFA officiel des pairings groupes → R32. */
+export async function bootstrapR32() {
+  await requireAdmin();
+  // 3 matchs/jour sur 6 jours (28 juin → 3 juillet)
+  const days = [
+    "2026-06-28",
+    "2026-06-29",
+    "2026-06-30",
+    "2026-07-01",
+    "2026-07-02",
+    "2026-07-03",
+  ];
+  // Horaires UTC (équivalents 18h, 20h, 22h CET) — éditables ensuite
+  const slots = ["17:00:00Z", "19:00:00Z", "21:00:00Z"];
+  let i = 0;
+  for (let d = 0; d < days.length && i < 16; d++) {
+    for (let s = 0; s < slots.length && i < 16; s++) {
+      const id = `r32-${String(i + 1).padStart(2, "0")}`;
+      const kickoff = new Date(`${days[d]}T${slots[s]}`);
+      await db
+        .insert(matches)
+        .values({
+          id,
+          phaseId: "r32",
+          kickoffAt: kickoff,
+          status: "scheduled",
+        })
+        .onConflictDoNothing();
+      i++;
+    }
+  }
+  revalidatePath("/admin/matches");
+  revalidatePath("/picks/r32");
+}
+
 /* ============================================================
    Auto-fill — génère les affiches de la phase suivante à partir
    des vainqueurs de la précédente. Marche pour R32 → R16 → QF

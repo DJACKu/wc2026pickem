@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/auth";
-import { getLeaderboardPage } from "@/lib/leaderboard";
+import { getLeaderboardPage, getMyRankAndScore } from "@/lib/leaderboard";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Display } from "@/components/ui/Display";
 import { Avatar } from "@/components/ui/Avatar";
@@ -18,11 +18,13 @@ export default async function LeaderboardPage({
   const search = q?.trim() || undefined;
 
   const session = await auth();
-  const { rows, total, pageSize } = await getLeaderboardPage({
-    search,
-    page,
-    meId: session?.user?.id,
-  });
+  const meId = session?.user?.id;
+  const [{ rows, total, pageSize }, mySummary] = await Promise.all([
+    getLeaderboardPage({ search, page, meId }),
+    meId
+      ? getMyRankAndScore(meId).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   // Podium uniquement si on a au moins 3 joueurs ET qu'au moins l'un d'eux
   // a des points (sinon c'est plus utile d'afficher la table complète).
@@ -77,6 +79,57 @@ export default async function LeaderboardPage({
           )}
         </form>
       </div>
+
+      {/* Toi : rang + points */}
+      {mySummary && session?.user && (
+        <div
+          className="rounded-[10px] p-4 mb-5 flex items-center gap-5 flex-wrap"
+          style={{
+            background: "var(--ink-3)",
+            border: "1px solid var(--line-strong)",
+            borderLeft: "3px solid var(--mexico)",
+          }}
+        >
+          <span
+            className="font-mono uppercase"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: "0.13em",
+              color: "var(--mexico)",
+            }}
+          >
+            ● Toi
+          </span>
+          <div>
+            <div className="font-mono text-[10px] tracking-[0.13em] uppercase text-[color:var(--paper-3)]">
+              Rang
+            </div>
+            <div className="font-display text-[28px] leading-none">
+              #{mySummary.rank}
+              <span className="text-[14px] text-[color:var(--paper-3)]">
+                {" "}/ {mySummary.of}
+              </span>
+            </div>
+          </div>
+          <div>
+            <div className="font-mono text-[10px] tracking-[0.13em] uppercase text-[color:var(--paper-3)]">
+              Points
+            </div>
+            <div
+              className="font-display text-[28px] leading-none"
+              style={{ color: mySummary.total > 0 ? "var(--gold)" : "var(--paper-1)" }}
+            >
+              {mySummary.total}
+            </div>
+          </div>
+          <Link
+            href={`/u/${session.user.handle}`}
+            className="btn btn-ghost btn-sm ml-auto"
+          >
+            Mon profil →
+          </Link>
+        </div>
+      )}
 
       {/* Podium */}
       {top3.length === 3 && (

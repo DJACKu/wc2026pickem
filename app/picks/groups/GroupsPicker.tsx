@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -74,6 +74,13 @@ export function GroupsPicker({
   const [error, setError] = useState<string | null>(null);
   const [locking, setLocking] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (savedAt === null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [savedAt]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -177,9 +184,11 @@ export function GroupsPicker({
 
   const autosaveMsg = useMemo(() => {
     if (!savedAt) return readOnly ? null : "EN ATTENTE";
-    const sec = Math.max(1, Math.floor((Date.now() - savedAt) / 1000));
-    return `IL Y A ${sec}S`;
-  }, [savedAt, readOnly]);
+    const sec = Math.max(1, Math.floor((now - savedAt) / 1000));
+    if (sec < 60) return `IL Y A ${sec}S`;
+    const min = Math.floor(sec / 60);
+    return `IL Y A ${min}M`;
+  }, [savedAt, now, readOnly]);
 
   return (
     <>

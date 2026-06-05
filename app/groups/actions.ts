@@ -103,6 +103,26 @@ export async function renameFriendGroup(input: z.infer<typeof renameSchema>) {
 
 const leaveSchema = z.object({ groupId: z.string().uuid() });
 
+const deleteSchema = z.object({ groupId: z.string().uuid() });
+
+export async function deleteFriendGroup(input: z.infer<typeof deleteSchema>) {
+  const user = await requireUser();
+  const { groupId } = deleteSchema.parse(input);
+  const [g] = await db
+    .select()
+    .from(friendGroups)
+    .where(eq(friendGroups.id, groupId))
+    .limit(1);
+  if (!g) throw new Error("Groupe introuvable.");
+  if (g.ownerId !== user.id) {
+    throw new Error("Seul le propriétaire peut supprimer le groupe.");
+  }
+  // friend_group_members cascade via FK ON DELETE CASCADE
+  await db.delete(friendGroups).where(eq(friendGroups.id, groupId));
+  revalidatePath("/groups");
+  redirect("/groups");
+}
+
 export async function leaveFriendGroup(input: z.infer<typeof leaveSchema>) {
   const user = await requireUser();
   const { groupId } = leaveSchema.parse(input);

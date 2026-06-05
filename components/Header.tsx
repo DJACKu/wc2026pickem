@@ -29,7 +29,7 @@ export async function Header({ nextPhase }: { nextPhase: NextPhase | null }) {
           <Wordmark size={16} />
         </Link>
 
-        <HeaderNav />
+        <HeaderNav isAdmin={user?.isAdmin ?? false} />
 
         <div className="ml-auto flex items-center gap-3">
           {nextPhase && (

@@ -23,6 +23,13 @@ export default async function Home() {
   ]);
 
   const groupsPhase = phasesList.find((p) => p.id === "groups");
+  const tournamentStarted =
+    !!groupsPhase && new Date(groupsPhase.locksAt).getTime() <= Date.now();
+  const currentPhase = phasesList.find(
+    (p) =>
+      new Date(p.locksAt).getTime() > Date.now() ||
+      (p.status === "open" && !tournamentStarted),
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-10 pt-12 pb-16">
@@ -79,7 +86,15 @@ export default async function Home() {
             border: "1px solid var(--line)",
           }}
         >
-          <SectionLabel num={groupsPhase ? jLabel(groupsPhase.locksAt) : "J−?"}>
+          <SectionLabel
+            num={
+              tournamentStarted
+                ? "EN COURS"
+                : groupsPhase
+                  ? jLabel(groupsPhase.locksAt)
+                  : "J−?"
+            }
+          >
             État du tournoi
           </SectionLabel>
 
@@ -92,30 +107,57 @@ export default async function Home() {
 
           <div className="h-px my-5" style={{ background: "var(--line)" }} />
 
-          <div className="font-mono uppercase mb-2 text-[10.5px] tracking-[0.14em]"
-            style={{ color: "var(--canada)" }}
-          >
-            ● Premier match
-          </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            <TeamFlag code="MEX" height={28} />
-            <span className="font-display text-[28px] leading-none text-[color:var(--paper-1)]">
-              MEX
-            </span>
-            <span className="font-display text-[22px] leading-none text-[color:var(--paper-3)] mx-1">
-              vs
-            </span>
-            <span className="font-display text-[28px] leading-none text-[color:var(--paper-1)]">
-              KOR
-            </span>
-            <TeamFlag code="KOR" height={28} />
-          </div>
-          <div className="font-mono text-[12px] text-[color:var(--paper-2)] mt-2">
-            11 juin · Estadio Azteca · Mexico City
-          </div>
-
-          {groupsPhase && (
-            <BigCountdown locksAt={groupsPhase.locksAt.toISOString()} />
+          {!tournamentStarted ? (
+            <>
+              <div
+                className="font-mono uppercase mb-2 text-[10.5px] tracking-[0.14em]"
+                style={{ color: "var(--canada)" }}
+              >
+                ● Premier match
+              </div>
+              <div className="flex items-center gap-3 mt-0.5">
+                <TeamFlag code="MEX" height={28} />
+                <span className="font-display text-[28px] leading-none text-[color:var(--paper-1)]">
+                  MEX
+                </span>
+                <span className="font-display text-[22px] leading-none text-[color:var(--paper-3)] mx-1">
+                  vs
+                </span>
+                <span className="font-display text-[28px] leading-none text-[color:var(--paper-1)]">
+                  KOR
+                </span>
+                <TeamFlag code="KOR" height={28} />
+              </div>
+              <div className="font-mono text-[12px] text-[color:var(--paper-2)] mt-2">
+                11 juin · Estadio Azteca · Mexico City
+              </div>
+              {groupsPhase && (
+                <BigCountdown locksAt={groupsPhase.locksAt.toISOString()} />
+              )}
+            </>
+          ) : (
+            <>
+              <div
+                className="font-mono uppercase mb-2 text-[10.5px] tracking-[0.14em]"
+                style={{ color: "var(--mexico)" }}
+              >
+                ● Phase active
+              </div>
+              <div className="font-display text-[36px] leading-none text-[color:var(--paper-1)]">
+                {currentPhase?.labelFr ?? "Tournoi en cours"}
+              </div>
+              {currentPhase && (
+                <div className="font-mono text-[12px] text-[color:var(--paper-2)] mt-2">
+                  Lock {new Date(currentPhase.locksAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long" })}
+                </div>
+              )}
+              <Link
+                href="/leaderboard"
+                className="btn btn-primary btn-md mt-5"
+              >
+                Voir le classement →
+              </Link>
+            </>
           )}
         </aside>
       </div>

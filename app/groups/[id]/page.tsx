@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { XIcon } from "@/components/ui/icons";
 import { LeaveButton } from "./LeaveButton";
 import { CopyCodeButton } from "./CopyCodeButton";
+import { DeleteButton } from "./DeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,9 @@ export default async function FriendGroupPage({
               {data.members.length} MEMBRE{data.members.length > 1 ? "S" : ""} ·{" "}
               {lockedCount} LOCKÉ{lockedCount > 1 ? "S" : ""}
             </span>
-            {!isOwner && (
+            {isOwner ? (
+              <DeleteButton groupId={data.group.id} name={data.group.name} />
+            ) : (
               <LeaveButton groupId={data.group.id} />
             )}
           </div>

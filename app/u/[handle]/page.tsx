@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import {
+  getUserBadges,
   getUserByHandle,
   getUserGroupTopPicks,
   getUserPhaseScores,
@@ -14,6 +16,29 @@ import { TeamFlag } from "@/components/ui/TeamFlag";
 import { XIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ handle: string }>;
+}): Promise<Metadata> {
+  const { handle: rawHandle } = await params;
+  const handle = decodeURIComponent(rawHandle).replace(/^@/, "");
+  const profile = await getUserByHandle(handle);
+  if (!profile) return { title: "Profil — Pick'em WC26" };
+  const name = profile.displayName || profile.handle;
+  return {
+    title: `${name} (@${profile.handle}) — Pick'em WC26`,
+    description: `Carte de picks de ${name} pour la Coupe du Monde 2026.`,
+    openGraph: {
+      title: `${name} — Pick'em WC26`,
+      type: "profile",
+    },
+    twitter: {
+      card: "summary_large_image",
+    },
+  };
+}
 
 const PHASE_MAX: Record<string, number> = {
   groups: 86,
@@ -35,12 +60,14 @@ export default async function PublicProfilePage({
   const profile = await getUserByHandle(handle);
   if (!profile) notFound();
 
-  const [session, phaseScores, groupTops, groupsRevealed] = await Promise.all([
-    auth(),
-    getUserPhaseScores(profile.id),
-    getUserGroupTopPicks(profile.id),
-    isGroupsPhaseRevealed(),
-  ]);
+  const [session, phaseScores, groupTops, groupsRevealed, badges] =
+    await Promise.all([
+      auth(),
+      getUserPhaseScores(profile.id),
+      getUserGroupTopPicks(profile.id),
+      isGroupsPhaseRevealed(),
+      getUserBadges(profile.id),
+    ]);
 
   const isMe = session?.user?.id === profile.id;
   const totalPoints = phaseScores.reduce((acc, p) => acc + p.points, 0);
@@ -88,15 +115,30 @@ export default async function PublicProfilePage({
               </div>
             </div>
           </div>
-          <a
-            href={`https://x.com/${profile.handle}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-x btn-sm"
-          >
-            <XIcon />
-            Voir sur X
-          </a>
+          <div className="flex flex-col gap-2">
+            <a
+              href={`https://x.com/intent/post?text=${encodeURIComponent(
+                `Ma carte de picks ${isMe ? "" : `de @${profile.handle} `}pour la WC26 — `,
+              )}${encodeURIComponent(
+                `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/u/${profile.handle}`,
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-x btn-sm"
+            >
+              <XIcon />
+              {isMe ? "Partager ma carte" : "Partager"}
+            </a>
+            <a
+              href={`https://x.com/${profile.handle}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ghost btn-sm"
+            >
+              <XIcon />
+              Voir sur X
+            </a>
+          </div>
         </div>
       </div>
 
@@ -217,25 +259,25 @@ export default async function PublicProfilePage({
               icon="⚡"
               title="Premier locké"
               sub="Picks lockés > 24h avant la deadline"
-              unlocked={false}
+              unlocked={badges.firstLocked}
             />
             <Badge
               icon="🎯"
               title="Madame Irma"
-              sub="9/12 tops de groupes exacts"
-              unlocked={false}
+              sub="≥ 9/12 tops de groupes exacts"
+              unlocked={badges.madameIrma}
             />
             <Badge
               icon="🥉"
               title="Le 3ème œil"
-              sub="6/8 meilleurs 3èmes corrects"
-              unlocked={false}
+              sub="≥ 6/8 meilleurs 3èmes corrects"
+              unlocked={badges.troisiemeOeil}
             />
             <Badge
               icon="👑"
               title="Royaume"
-              sub="Champion correct (à débloquer)"
-              unlocked={false}
+              sub="Champion du monde prédit correctement"
+              unlocked={badges.royaume}
             />
           </div>
         </div>

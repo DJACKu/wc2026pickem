@@ -103,6 +103,42 @@ export async function getLeaderboardPage({
   };
 }
 
+export async function getMyRankAndScore(userId: string) {
+  // Total points pour ce user
+  const [me] = await db
+    .select({
+      total: sql<number>`COALESCE(SUM(${scores.points}), 0)::int`,
+    })
+    .from(scores)
+    .where(eq(scores.userId, userId));
+  const myTotal = Number(me?.total ?? 0);
+
+  // Rang = nombre de joueurs qui ont strictement plus de points + 1
+  const [count] = await db
+    .select({
+      n: sql<number>`count(*)::int`,
+    })
+    .from(
+      sql`(SELECT ${users.id} AS user_id, COALESCE(SUM(${scores.points}), 0) AS total
+           FROM ${users}
+           LEFT JOIN ${scores} ON ${scores.userId} = ${users.id}
+           GROUP BY ${users.id}
+           HAVING COALESCE(SUM(${scores.points}), 0) > ${myTotal}) as ranked`,
+    );
+  const rank = Number(count?.n ?? 0) + 1;
+
+  // Total des joueurs inscrits
+  const [totalUsers] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(users);
+
+  return {
+    rank,
+    total: myTotal,
+    of: Number(totalUsers?.n ?? 0),
+  };
+}
+
 export async function getMyFriendGroupsSummary(userId: string) {
   const rows = await db
     .select({
