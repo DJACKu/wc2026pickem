@@ -22,9 +22,6 @@ async function assertPickable(userId: string) {
     .where(eq(phases.id, PHASE_ID))
     .limit(1);
   if (!p) throw new Error("Phase introuvable.");
-  if (new Date(p.locksAt).getTime() <= Date.now()) {
-    throw new Error("La phase est déjà lockée — plus aucune modification.");
-  }
   const [lock] = await db
     .select()
     .from(pickLocks)
@@ -54,6 +51,22 @@ export async function saveGroupOrder(input: z.infer<typeof groupOrderSchema>) {
   }
 
   await assertPickable(user.id);
+
+  const now = new Date();
+  const [started] = await db
+    .select({ id: matches.id })
+    .from(matches)
+    .innerJoin(teams, eq(matches.homeTeamId, teams.id))
+    .where(
+      and(
+        eq(teams.groupLetter, groupLetter),
+        sql`${matches.kickoffAt} <= ${now.toISOString()}`
+      )
+    )
+    .limit(1);
+  if (started) {
+    throw new Error(`La poule ${groupLetter} a déjà commencé, tu ne peux plus la modifier.`);
+  }
 
   // Replace this user's 4 picks for the group in one round-trip.
   await db
@@ -98,6 +111,25 @@ export async function toggleThirdPick(input: z.infer<typeof toggleThirdSchema>) 
   const user = await requireUser();
   const { teamId, checked } = toggleThirdSchema.parse(input);
   await assertPickable(user.id);
+
+  const [teamInfo] = await db.select({ groupLetter: teams.groupLetter }).from(teams).where(eq(teams.id, teamId)).limit(1);
+  if (teamInfo) {
+    const now = new Date();
+    const [started] = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .innerJoin(teams, eq(matches.homeTeamId, teams.id))
+      .where(
+        and(
+          eq(teams.groupLetter, teamInfo.groupLetter),
+          sql`${matches.kickoffAt} <= ${now.toISOString()}`
+        )
+      )
+      .limit(1);
+    if (started) {
+      throw new Error(`La poule ${teamInfo.groupLetter} a déjà commencé, tu ne peux plus modifier ses 3èmes.`);
+    }
+  }
 
   // Validate that the team is actually one of the user's 12 predicted 3rds.
   const [own] = await db
@@ -146,9 +178,6 @@ export async function unlockGroupsPhase() {
     .where(eq(phases.id, PHASE_ID))
     .limit(1);
   if (!p) throw new Error("Phase introuvable.");
-  if (new Date(p.locksAt).getTime() <= Date.now()) {
-    throw new Error("Trop tard — la deadline serveur est passée.");
-  }
   await db
     .delete(pickLocks)
     .where(and(eq(pickLocks.userId, user.id), eq(pickLocks.phaseId, PHASE_ID)));
@@ -165,16 +194,13 @@ export async function lockGroupsPhase() {
     .select({ n: sql<number>`count(*)::int` })
     .from(groupPicks)
     .where(eq(groupPicks.userId, user.id));
-  if (Number(gpCount?.n ?? 0) !== 48) {
-    throw new Error("Tu dois classer les 4 équipes des 12 poules avant de lock.");
-  }
 
   const [tpCount] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(thirdPlacePicks)
     .where(eq(thirdPlacePicks.userId, user.id));
-  if (Number(tpCount?.n ?? 0) !== 8) {
-    throw new Error("Coche exactement 8 meilleurs 3èmes.");
+  if (Number(tpCount?.n ?? 0) > 8) {
+    throw new Error("Tu as sélectionné plus de 8 meilleurs 3èmes.");
   }
 
   await db

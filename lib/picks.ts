@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   groupPicks,
@@ -18,7 +18,26 @@ export async function getPhase(phaseId: string) {
 export async function isPhaseLocked(phaseId: string): Promise<boolean> {
   const p = await getPhase(phaseId);
   if (!p) return true;
+  // If phase is groups, we rely on per-group kickoff times instead of the global lock.
+  if (phaseId === "groups") return false;
   return new Date(p.locksAt).getTime() <= Date.now();
+}
+
+export async function getStartedGroups(): Promise<Set<string>> {
+  const now = new Date();
+  const rows = await db
+    .select({ groupLetter: teams.groupLetter })
+    .from(matches)
+    .innerJoin(teams, eq(matches.homeTeamId, teams.id))
+    .where(
+      and(
+        eq(matches.phaseId, "groups"),
+        // @ts-ignore
+        sql`${matches.kickoffAt} <= ${now.toISOString()}`
+      )
+    )
+    .groupBy(teams.groupLetter);
+  return new Set(rows.map((r) => r.groupLetter!));
 }
 
 export async function isUserLocked(userId: string, phaseId: string): Promise<boolean> {

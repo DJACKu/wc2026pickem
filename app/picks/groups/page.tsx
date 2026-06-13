@@ -6,6 +6,8 @@ import {
   getUserGroupPicks,
   getUserThirdPicks,
   isUserLocked,
+  getStartedGroups,
+  getMatchesByPhase,
 } from "@/lib/picks";
 import { GROUP_LETTERS } from "@/db/seed-data";
 import { GroupsPicker } from "./GroupsPicker";
@@ -14,12 +16,14 @@ export const dynamic = "force-dynamic";
 
 export default async function GroupsPicksPage() {
   const user = await requireUser();
-  const [phase, teams, picks, thirds, locked] = await Promise.all([
+  const [phase, teams, picks, thirds, locked, startedSet, allMatches] = await Promise.all([
     getPhase("groups"),
     getAllTeams(),
     getUserGroupPicks(user.id),
     getUserThirdPicks(user.id),
     isUserLocked(user.id, "groups"),
+    getStartedGroups(),
+    getMatchesByPhase("groups"),
   ]);
 
   if (!phase) {
@@ -58,6 +62,15 @@ export default async function GroupsPicksPage() {
     (l) => (pickedByGroup[l]?.length ?? 0) === 4,
   ).length;
 
+  const matchesByGroup: Record<string, typeof allMatches> = {};
+  for (const m of allMatches) {
+    // Find the group of the home team
+    const t = teams.find((x) => x.id === m.homeTeamId);
+    if (t) {
+      (matchesByGroup[t.groupLetter] ??= []).push(m);
+    }
+  }
+
   return (
     <div>
       {/* Sub-header strip */}
@@ -87,6 +100,8 @@ export default async function GroupsPicksPage() {
         deadline={phase.locksAt.toISOString()}
         userLocked={locked}
         initialSavedGroupsCount={savedGroupsCount}
+        startedGroups={Array.from(startedSet)}
+        matchesByGroup={matchesByGroup}
       />
     </div>
   );

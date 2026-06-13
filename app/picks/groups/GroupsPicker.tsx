@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import type { Team } from "@/db/schema";
+import type { Match, Team } from "@/db/schema";
 import { GROUP_LETTERS } from "@/db/seed-data";
 import { Display } from "@/components/ui/Display";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -46,6 +46,8 @@ type Props = {
   deadline: string;
   userLocked: boolean;
   initialSavedGroupsCount: number;
+  startedGroups: string[];
+  matchesByGroup: Record<string, Match[]>;
 };
 
 export function GroupsPicker({
@@ -56,8 +58,10 @@ export function GroupsPicker({
   deadline,
   userLocked,
   initialSavedGroupsCount,
+  startedGroups,
+  matchesByGroup,
 }: Props) {
-  const readOnly = deadlinePassed || userLocked;
+  const globalReadOnly = userLocked;
   const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [thirds, setThirds] = useState<Set<string>>(new Set(initialThirds));
@@ -82,6 +86,12 @@ export function GroupsPicker({
     return () => clearInterval(id);
   }, [savedAt]);
 
+  // Real-time polling
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 20000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
@@ -89,7 +99,7 @@ export function GroupsPicker({
   );
 
   function handleDragEnd(letter: string, event: DragEndEvent) {
-    if (readOnly) return;
+    if (globalReadOnly || startedGroups.includes(letter)) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const old = orders[letter] ?? [];
@@ -126,7 +136,8 @@ export function GroupsPicker({
   }
 
   function onToggleThird(teamId: string, checked: boolean) {
-    if (readOnly) return;
+    const team = teamsById[teamId];
+    if (globalReadOnly || (team && startedGroups.includes(team.groupLetter))) return;
     if (checked && thirds.size >= 8) {
       setError("Tu as déjà 8 meilleurs 3èmes — décoches-en un d'abord.");
       return;
@@ -155,7 +166,7 @@ export function GroupsPicker({
     setLocking(true);
     try {
       await Promise.all(
-        GROUP_LETTERS.map((l) =>
+        GROUP_LETTERS.filter((l) => !startedGroups.includes(l)).map((l) =>
           saveGroupOrder({ groupLetter: l, teamIds: orders[l] }),
         ),
       );
@@ -183,12 +194,12 @@ export function GroupsPicker({
   const canLock = thirdsCount === 8 && !locking;
 
   const autosaveMsg = useMemo(() => {
-    if (!savedAt) return readOnly ? null : "EN ATTENTE";
+    if (!savedAt) return globalReadOnly ? null : "EN ATTENTE";
     const sec = Math.max(1, Math.floor((now - savedAt) / 1000));
     if (sec < 60) return `IL Y A ${sec}S`;
     const min = Math.floor(sec / 60);
     return `IL Y A ${min}M`;
-  }, [savedAt, now, readOnly]);
+  }, [savedAt, now, globalReadOnly]);
 
   return (
     <>
@@ -198,16 +209,14 @@ export function GroupsPicker({
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         <div className="flex items-center gap-4">
-          <StatusPill status={readOnly ? "locked" : "open"}>
-            {deadlinePassed
-              ? "DEADLINE PASSÉE"
-              : userLocked
-                ? "TES PICKS SONT LOCKÉS"
-                : "12 GROUPES À ORDONNER"}
+          <StatusPill status={globalReadOnly ? "locked" : "open"}>
+            {userLocked
+              ? "TES PICKS SONT LOCKÉS"
+              : "12 GROUPES À ORDONNER"}
           </StatusPill>
         </div>
         <div className="flex items-center gap-4">
-          {!readOnly && (
+          {!globalReadOnly && (
             <span
               className="font-mono text-[11px] tracking-[0.1em]"
               style={{ color: savedAt ? "var(--mexico)" : "var(--paper-3)" }}
@@ -274,18 +283,23 @@ export function GroupsPicker({
 
       {/* Groups grid 4×3 */}
       <div className="px-6 lg:px-10 mt-6 grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-        {GROUP_LETTERS.map((letter) => (
-          <GroupCard
-            key={letter}
-            letter={letter}
-            orderIds={orders[letter] ?? []}
-            teamsById={teamsById}
-            readOnly={readOnly}
-            saved={savedGroups.has(letter)}
-            sensors={sensors}
-            onDragEnd={(e) => handleDragEnd(letter, e)}
-          />
-        ))}
+        {GROUP_LETTERS.map((letter) => {
+          const isGroupReadOnly = globalReadOnly || startedGroups.includes(letter);
+          return (
+            <GroupCard
+              key={letter}
+              letter={letter}
+              orderIds={orders[letter] ?? []}
+              teamsById={teamsById}
+              readOnly={isGroupReadOnly}
+              saved={savedGroups.has(letter)}
+              sensors={sensors}
+              onDragEnd={(e) => handleDragEnd(letter, e)}
+              matches={matchesByGroup[letter] ?? []}
+              hasStarted={startedGroups.includes(letter)}
+            />
+          );
+        })}
       </div>
 
       {/* 8 best 3rds panel */}
@@ -328,11 +342,12 @@ export function GroupsPicker({
               if (!teamId) return null;
               const t = teamsById[teamId];
               const checked = thirds.has(teamId);
+              const isTeamReadOnly = globalReadOnly || (t && startedGroups.includes(t.groupLetter));
               return (
                 <label
                   key={letter}
                   className={`relative grid items-center gap-2.5 rounded-md ${
-                    readOnly ? "cursor-default" : "cursor-pointer"
+                    isTeamReadOnly ? "cursor-default" : "cursor-pointer"
                   }`}
                   style={{
                     gridTemplateColumns: "auto auto auto 1fr auto",
@@ -348,7 +363,7 @@ export function GroupsPicker({
                     type="checkbox"
                     className="sr-only"
                     checked={checked}
-                    disabled={readOnly}
+                    disabled={isTeamReadOnly}
                     onChange={(e) => onToggleThird(teamId, e.target.checked)}
                   />
                   <span
@@ -383,7 +398,7 @@ export function GroupsPicker({
         </div>
 
         {/* Bottom lock strip */}
-        {!readOnly && (
+        {!globalReadOnly && (
           <div
             className="mt-6 mb-12 px-6 py-5 rounded-[10px] flex flex-wrap items-center justify-between gap-4"
             style={{
@@ -439,20 +454,16 @@ export function GroupsPicker({
                 ✓ TU AS LOCKÉ TES PICKS
               </div>
               <div className="text-[14px] text-[color:var(--paper-2)] mt-1">
-                {deadlinePassed
-                  ? "Trop tard pour modifier — la deadline serveur est passée."
-                  : `Tu peux encore les modifier jusqu'au ${formatPhaseDeadline(deadline)}.`}
+                {`Tu peux encore les modifier en demandant de débloquer.`}
               </div>
             </div>
-            {!deadlinePassed && (
-              <button
-                type="button"
-                onClick={handleUnlock}
-                className="btn btn-ghost btn-md"
-              >
-                ← Modifier mes picks
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleUnlock}
+              className="btn btn-ghost btn-md"
+            >
+              ← Modifier mes picks
+            </button>
           </div>
         )}
       </section>
@@ -468,6 +479,8 @@ function GroupCard({
   saved,
   sensors,
   onDragEnd,
+  matches,
+  hasStarted,
 }: {
   letter: string;
   orderIds: string[];
@@ -476,6 +489,8 @@ function GroupCard({
   saved: boolean;
   sensors: SensorDescriptor<SensorOptions>[];
   onDragEnd: (event: DragEndEvent) => void;
+  matches: Match[];
+  hasStarted: boolean;
 }) {
   return (
     <div
@@ -505,9 +520,32 @@ function GroupCard({
           className="font-mono text-[10px] tracking-[0.1em]"
           style={{ color: saved ? "var(--mexico)" : "var(--paper-4)" }}
         >
-          {saved ? "✓ OK" : "⋮⋮ DÉPLACE"}
+          {hasStarted ? "🔒 COMMENCÉ" : saved ? "✓ OK" : "⋮⋮ DÉPLACE"}
         </span>
       </div>
+
+      {matches.length > 0 && (
+        <div className="mb-3 p-2 rounded flex flex-col gap-1.5" style={{ background: "var(--ink-1)", border: "1px solid var(--line-strong)" }}>
+          {matches.slice(0, 6).map((m) => {
+            const h = teamsById[m.homeTeamId!];
+            const a = teamsById[m.awayTeamId!];
+            if (!h || !a) return null;
+            return (
+              <div key={m.id} className="flex items-center justify-between font-mono text-[10px] text-[color:var(--paper-2)]">
+                <span className="flex items-center gap-1.5">
+                  <TeamFlag code={h.id} height={10} /> {h.id}
+                </span>
+                <span className="font-bold text-[color:var(--paper-1)]">
+                  {m.homeScore ?? "-"} : {m.awayScore ?? "-"}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {a.id} <TeamFlag code={a.id} height={10} />
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <DndContext
         sensors={sensors}
