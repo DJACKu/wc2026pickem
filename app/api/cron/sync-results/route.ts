@@ -75,10 +75,9 @@ export async function GET(req: Request) {
   // affiches — the admin builds the bracket).
   let touched = 0;
   for (const fd of incoming) {
-    if (fd.status !== "FINISHED") continue;
-    const winnerHome = fd.score?.winner === "HOME_TEAM";
-    const winnerAway = fd.score?.winner === "AWAY_TEAM";
-    if (!winnerHome && !winnerAway) continue;
+    if (!["FINISHED", "IN_PLAY", "PAUSED"].includes(fd.status)) continue;
+    const isFinished = fd.status === "FINISHED";
+    const matchStatus = isFinished ? "finished" : "live";
 
     const matchId = `fd-${fd.id}`;
     const [existing] = await db
@@ -93,8 +92,9 @@ export async function GET(req: Request) {
       .limit(1);
     if (!existing || existing.override) continue;
 
-    const winnerId = winnerHome ? existing.homeTeamId : existing.awayTeamId;
-    if (!winnerId) continue;
+    const winnerHome = fd.score?.winner === "HOME_TEAM";
+    const winnerAway = fd.score?.winner === "AWAY_TEAM";
+    const winnerId = winnerHome ? existing.homeTeamId : winnerAway ? existing.awayTeamId : null;
 
     await db
       .update(matches)
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
         homeScore: fd.score?.fullTime?.home ?? null,
         awayScore: fd.score?.fullTime?.away ?? null,
         winnerId,
-        status: "finished",
+        status: matchStatus,
       })
       .where(
         and(eq(matches.id, matchId), eq(matches.manualOverride, false)),
