@@ -11,6 +11,7 @@ import {
   pickLocks,
   teams,
   thirdPlacePicks,
+  matches,
 } from "@/db";
 
 const PHASE_ID = "groups";
