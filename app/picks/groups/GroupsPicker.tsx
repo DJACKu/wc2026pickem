@@ -520,7 +520,7 @@ function GroupCard({
           className="font-mono text-[10px] tracking-[0.1em]"
           style={{ color: saved ? "var(--mexico)" : "var(--paper-4)" }}
         >
-          {hasStarted ? "🔒 COMMENCÉ" : saved ? "✓ OK" : "⋮⋮ DÉPLACE"}
+          {hasStarted ? "🔒 EN DIRECT" : saved ? "✓ OK" : "⋮⋮ DÉPLACE"}
         </span>
       </div>
 
@@ -554,15 +554,22 @@ function GroupCard({
       >
         <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
           <div className="grid gap-1.5">
-            {orderIds.map((id, idx) => (
-              <SortableTeamRow
-                key={id}
-                id={id}
-                team={teamsById[id]}
-                position={idx + 1}
-                readOnly={readOnly}
-              />
-            ))}
+            {orderIds.map((id, idx) => {
+              const liveStandings = computeLiveStandings(orderIds, matches);
+              const hasScores = matches.some(m => m.homeScore != null);
+              const livePos = hasScores ? liveStandings.indexOf(id) + 1 : null;
+              
+              return (
+                <SortableTeamRow
+                  key={id}
+                  id={id}
+                  team={teamsById[id]}
+                  position={idx + 1}
+                  readOnly={readOnly}
+                  livePos={livePos}
+                />
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -584,11 +591,13 @@ function SortableTeamRow({
   team,
   position,
   readOnly,
+  livePos,
 }: {
   id: string;
   team: Team | undefined;
   position: number;
   readOnly: boolean;
+  livePos?: number | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id, disabled: readOnly });
@@ -649,16 +658,49 @@ function SortableTeamRow({
           {...attributes}
           {...listeners}
           aria-label="Réordonner"
-          className="font-mono touch-none cursor-grab active:cursor-grabbing"
+          className="font-mono touch-none cursor-grab active:cursor-grabbing flex justify-end"
           style={{ fontSize: 10, letterSpacing: 1, color: "var(--paper-4)" }}
         >
           ⋮⋮
         </button>
+      ) : livePos != null ? (
+        <span
+          className="font-mono text-[10px] flex items-center justify-end font-bold"
+          style={{ color: livePos === position ? "var(--mexico)" : "var(--canada)" }}
+        >
+          {livePos === position ? "✓" : `RÉEL ${livePos}${livePos === 1 ? "er" : "e"}`}
+        </span>
       ) : (
         <span />
       )}
     </div>
   );
+}
+
+function computeLiveStandings(teamIds: string[], matches: Match[]): string[] {
+  if (matches.length === 0) return teamIds;
+  const stats = Object.fromEntries(teamIds.map(id => [id, { pts: 0, gd: 0, gs: 0 }]));
+  for (const m of matches) {
+    if (m.homeScore == null || m.awayScore == null) continue;
+    const h = stats[m.homeTeamId!];
+    const a = stats[m.awayTeamId!];
+    if (!h || !a) continue;
+    h.gs += m.homeScore;
+    a.gs += m.awayScore;
+    h.gd += (m.homeScore - m.awayScore);
+    a.gd += (m.awayScore - m.homeScore);
+    if (m.homeScore > m.awayScore) h.pts += 3;
+    else if (m.homeScore < m.awayScore) a.pts += 3;
+    else { h.pts += 1; a.pts += 1; }
+  }
+  return [...teamIds].sort((a, b) => {
+    const stA = stats[a];
+    const stB = stats[b];
+    if (stA.pts !== stB.pts) return stB.pts - stA.pts;
+    if (stA.gd !== stB.gd) return stB.gd - stA.gd;
+    if (stA.gs !== stB.gs) return stB.gs - stA.gs;
+    return 0;
+  });
 }
 
 function humanize(e: unknown): string {
