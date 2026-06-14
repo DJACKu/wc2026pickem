@@ -61,7 +61,7 @@ export function GroupsPicker({
   startedGroups,
   matchesByGroup,
 }: Props) {
-  const globalReadOnly = userLocked;
+  const globalReadOnly = deadlinePassed || userLocked;
   const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [thirds, setThirds] = useState<Set<string>>(new Set(initialThirds));
@@ -210,9 +210,11 @@ export function GroupsPicker({
       >
         <div className="flex items-center gap-4">
           <StatusPill status={globalReadOnly ? "locked" : "open"}>
-            {userLocked
-              ? "TES PICKS SONT LOCKÉS"
-              : "12 GROUPES À ORDONNER"}
+            {deadlinePassed
+              ? "DEADLINE PASSÉE"
+              : userLocked
+                ? "TES PICKS SONT LOCKÉS"
+                : "12 GROUPES À ORDONNER"}
           </StatusPill>
         </div>
         <div className="flex items-center gap-4">

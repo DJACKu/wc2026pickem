@@ -23,6 +23,9 @@ async function assertPickable(userId: string) {
     .where(eq(phases.id, PHASE_ID))
     .limit(1);
   if (!p) throw new Error("Phase introuvable.");
+  if (new Date(p.locksAt).getTime() <= Date.now()) {
+    throw new Error("La deadline est passée — tu ne peux plus modifier tes picks.");
+  }
   const [lock] = await db
     .select()
     .from(pickLocks)

@@ -244,7 +244,8 @@ type FdMatch = {
   };
 };
 
-const FD_STAGE_TO_PHASE: Record<string, "r32" | "r16" | "qf" | "sf" | "final"> = {
+const FD_STAGE_TO_PHASE: Record<string, "groups" | "r32" | "r16" | "qf" | "sf" | "final"> = {
+  GROUP_STAGE: "groups",
   LAST_32: "r32",
   ROUND_OF_32: "r32",
   LAST_16: "r16",
@@ -293,7 +294,7 @@ export async function syncBracketFromFootballData() {
 
   for (const fd of incoming) {
     const phaseId = FD_STAGE_TO_PHASE[fd.stage];
-    if (!phaseId) continue; // group stage, ignore
+    if (!phaseId) continue; // unknown stage, skip
 
     const matchId = `fd-${fd.id}`;
 
@@ -362,6 +363,8 @@ export async function syncBracketFromFootballData() {
   );
 
   revalidatePath("/admin/matches");
+  revalidatePath("/today");
+  revalidatePath("/picks/groups");
   revalidatePath("/picks/r32");
   revalidatePath("/picks/r16");
   revalidatePath("/picks/qf");

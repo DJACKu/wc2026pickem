@@ -18,8 +18,6 @@ export async function getPhase(phaseId: string) {
 export async function isPhaseLocked(phaseId: string): Promise<boolean> {
   const p = await getPhase(phaseId);
   if (!p) return true;
-  // If phase is groups, we rely on per-group kickoff times instead of the global lock.
-  if (phaseId === "groups") return false;
   return new Date(p.locksAt).getTime() <= Date.now();
 }
 

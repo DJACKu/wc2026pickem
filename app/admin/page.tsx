@@ -10,6 +10,7 @@ import {
   runScoreAll,
   runScoreGroups,
   runScoreKo,
+  syncBracketFromFootballData,
   updatePhase,
 } from "./actions";
 
@@ -57,8 +58,13 @@ export default async function AdminPage() {
         <Link href="/admin/matches" className="btn btn-ghost btn-md">
           Saisir / éditer les matchs KO →
         </Link>
-        <form action={runScoreAll}>
+        <form action={syncBracketFromFootballData}>
           <button className="btn btn-primary btn-md" type="submit">
+            ⟳ Sync football-data (poules + KO)
+          </button>
+        </form>
+        <form action={runScoreAll}>
+          <button className="btn btn-ghost btn-md" type="submit">
             ⟳ Rescorer toutes les phases
           </button>
         </form>
