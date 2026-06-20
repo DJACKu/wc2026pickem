@@ -37,12 +37,10 @@ export function HeaderNav({ isAdmin = false }: { isAdmin?: boolean }) {
             className="font-mono text-[11px] tracking-[0.12em] uppercase pb-0.5"
             style={{
               color: active
-                ? "var(--paper-1)"
-                : isAdminLink
-                  ? "var(--gold)"
-                  : "var(--paper-3)",
+                ? (isAdminLink ? "var(--gold)" : "var(--paper-1)")
+                : (isAdminLink ? "color-mix(in srgb, var(--gold) 50%, transparent)" : "var(--paper-3)"),
               borderBottom: active
-                ? "1px solid var(--paper-1)"
+                ? (isAdminLink ? "1px solid var(--gold)" : "1px solid var(--paper-1)")
                 : "1px solid transparent",
             }}
           >

@@ -6,6 +6,7 @@ import { db, matches, resultsGroupStandings, users } from "@/db";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Display } from "@/components/ui/Display";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { SyncButton } from "@/components/SyncButton";
 import {
   runScoreAll,
   runScoreGroups,
@@ -58,11 +59,12 @@ export default async function AdminPage() {
         <Link href="/admin/matches" className="btn btn-ghost btn-md">
           Saisir / éditer les matchs KO →
         </Link>
-        <form action={syncBracketFromFootballData}>
-          <button className="btn btn-primary btn-md" type="submit">
-            ⟳ Sync football-data (poules + KO)
-          </button>
-        </form>
+        <SyncButton
+          action={syncBracketFromFootballData}
+          label="⟳ Sync football-data (poules + KO)"
+          loadingLabel="⏳ Synchronisation en cours..."
+          successLabel="✅ Synchronisation réussie !"
+        />
         <form action={runScoreAll}>
           <button className="btn btn-ghost btn-md" type="submit">
             ⟳ Rescorer toutes les phases
