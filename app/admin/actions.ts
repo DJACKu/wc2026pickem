@@ -292,6 +292,26 @@ export async function syncBracketFromFootballData() {
   let skipped = 0;
   let teamLookupMisses = 0;
 
+  // football-data.org sometimes uses different TLAs than FIFA codes
+  const TLA_ALIASES: Record<string, string> = {
+    CUR: "CUW",   // Curaçao
+    CAP: "CPV",   // Cap-Vert
+    SAU: "KSA",   // Arabie Saoudite
+    CRC: "CRI",   // Costa Rica (if present)
+    RSA: "RSA",   // South Africa (same)
+    SCT: "SCO",   // Scotland
+    ALG: "ALG",   // Algeria (same)
+    BOS: "BIH",   // Bosnia
+    PAR: "PAR",   // Paraguay (same)
+  };
+
+  function resolveTla(tla: string | null): string | null {
+    if (!tla) return null;
+    const upper = tla.toUpperCase();
+    const mapped = TLA_ALIASES[upper] ?? upper;
+    return ourTeams.has(mapped) ? mapped : (ourTeams.has(upper) ? upper : null);
+  }
+
   for (const fd of incoming) {
     const phaseId = FD_STAGE_TO_PHASE[fd.stage];
     if (!phaseId) continue; // unknown stage, skip
@@ -300,10 +320,10 @@ export async function syncBracketFromFootballData() {
 
     const homeTla = fd.homeTeam?.tla?.toUpperCase() ?? null;
     const awayTla = fd.awayTeam?.tla?.toUpperCase() ?? null;
-    const homeId = homeTla && ourTeams.has(homeTla) ? homeTla : null;
-    const awayId = awayTla && ourTeams.has(awayTla) ? awayTla : null;
-    if (homeTla && !homeId) teamLookupMisses++;
-    if (awayTla && !awayId) teamLookupMisses++;
+    const homeId = resolveTla(homeTla);
+    const awayId = resolveTla(awayTla);
+    if (homeTla && !homeId) { teamLookupMisses++; console.warn(`[sync] Unknown home TLA: ${homeTla}`); }
+    if (awayTla && !awayId) { teamLookupMisses++; console.warn(`[sync] Unknown away TLA: ${awayTla}`); }
 
     const kickoff = fd.utcDate ? new Date(fd.utcDate) : null;
 
