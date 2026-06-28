@@ -81,42 +81,42 @@ export const seedPhases = [
     id: "groups",
     labelFr: "Phase de groupes",
     opensAt: new Date("2026-05-01T00:00:00Z"),
-    locksAt: new Date("2026-06-11T17:00:00Z"), // coup d'envoi (Estadio Azteca, ~11h CT)
+    locksAt: new Date("2026-06-11T16:50:00Z"), // 10 min avant coup d'envoi 17:00 UTC
     sortOrder: 1,
   },
   {
     id: "r32",
     labelFr: "16es de finale",
     opensAt: new Date("2026-06-27T22:00:00Z"),
-    locksAt: new Date("2026-06-28T16:00:00Z"),
+    locksAt: new Date("2026-06-28T18:50:00Z"), // 10 min avant 21h FR (19h UTC)
     sortOrder: 2,
   },
   {
     id: "r16",
     labelFr: "8es de finale",
     opensAt: new Date("2026-07-03T22:00:00Z"),
-    locksAt: new Date("2026-07-04T16:00:00Z"),
+    locksAt: new Date("2026-07-04T18:50:00Z"), // 10 min avant 21h FR
     sortOrder: 3,
   },
   {
     id: "qf",
     labelFr: "Quarts de finale",
-    opensAt: new Date("2026-07-08T00:00:00Z"),
-    locksAt: new Date("2026-07-09T16:00:00Z"),
+    opensAt: new Date("2026-07-07T22:00:00Z"),
+    locksAt: new Date("2026-07-09T18:50:00Z"), // 10 min avant 21h FR
     sortOrder: 4,
   },
   {
     id: "sf",
     labelFr: "Demi-finales",
-    opensAt: new Date("2026-07-12T00:00:00Z"),
-    locksAt: new Date("2026-07-14T16:00:00Z"),
+    opensAt: new Date("2026-07-11T22:00:00Z"),
+    locksAt: new Date("2026-07-14T18:50:00Z"), // 10 min avant 21h FR
     sortOrder: 5,
   },
   {
     id: "final",
     labelFr: "Petite finale + Finale",
-    opensAt: new Date("2026-07-16T00:00:00Z"),
-    locksAt: new Date("2026-07-18T16:00:00Z"),
+    opensAt: new Date("2026-07-15T22:00:00Z"),
+    locksAt: new Date("2026-07-18T18:50:00Z"), // 10 min avant 21h FR
     sortOrder: 6,
   },
 ] as const;

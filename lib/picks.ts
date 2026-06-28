@@ -77,6 +77,18 @@ export async function getUserMatchPicks(userId: string, phaseId: string) {
     .where(and(eq(matchPicks.userId, userId), eq(matches.phaseId, phaseId)));
 }
 
+export async function getUserAllMatchPicks(userId: string) {
+  return db
+    .select({
+      matchId: matchPicks.matchId,
+      predictedWinnerId: matchPicks.predictedWinnerId,
+      phaseId: matches.phaseId,
+    })
+    .from(matchPicks)
+    .innerJoin(matches, eq(matches.id, matchPicks.matchId))
+    .where(eq(matchPicks.userId, userId));
+}
+
 export async function getAllTeams() {
   return db.select().from(teams).orderBy(asc(teams.groupLetter), asc(teams.nameFr));
 }

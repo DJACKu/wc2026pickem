@@ -14,6 +14,19 @@ import { Display } from "@/components/ui/Display";
 import { Avatar } from "@/components/ui/Avatar";
 import { TeamFlag } from "@/components/ui/TeamFlag";
 import { XIcon } from "@/components/ui/icons";
+import { db, matches, phases } from "@/db";
+import { asc, inArray } from "drizzle-orm";
+import {
+  getAllTeams,
+  getPhase,
+  getMatchesByPhase,
+  getStartedGroups,
+  getUserGroupPicks,
+  getUserThirdPicks,
+  getUserAllMatchPicks,
+} from "@/lib/picks";
+import { GROUP_LETTERS } from "@/db/seed-data";
+import { PublicPicks } from "./PublicPicks";
 
 export const dynamic = "force-dynamic";
 
@@ -60,14 +73,37 @@ export default async function PublicProfilePage({
   const profile = await getUserByHandle(handle);
   if (!profile) notFound();
 
-  const [session, phaseScores, groupTops, groupsRevealed, badges] =
-    await Promise.all([
-      auth(),
-      getUserPhaseScores(profile.id),
-      getUserGroupTopPicks(profile.id),
-      isGroupsPhaseRevealed(),
-      getUserBadges(profile.id),
-    ]);
+  const [
+    session,
+    phaseScores,
+    groupTops,
+    groupsRevealed,
+    badges,
+    allTeams,
+    groupsPhase,
+    allGroupsMatches,
+    startedGroupsSet,
+    groupPicks,
+    thirdPicks,
+    koPhases,
+    koMatches,
+    matchPicks,
+  ] = await Promise.all([
+    auth(),
+    getUserPhaseScores(profile.id),
+    getUserGroupTopPicks(profile.id),
+    isGroupsPhaseRevealed(),
+    getUserBadges(profile.id),
+    getAllTeams(),
+    getPhase("groups"),
+    getMatchesByPhase("groups"),
+    getStartedGroups(),
+    getUserGroupPicks(profile.id),
+    getUserThirdPicks(profile.id),
+    db.select().from(phases).where(inArray(phases.id, ["r32", "r16", "qf", "sf", "final"])).orderBy(asc(phases.sortOrder)),
+    db.select().from(matches).where(inArray(matches.phaseId, ["r32", "r16", "qf", "sf", "final"])).orderBy(asc(matches.kickoffAt)),
+    getUserAllMatchPicks(profile.id),
+  ]);
 
   const isMe = session?.user?.id === profile.id;
   const totalPoints = phaseScores.reduce((acc, p) => acc + p.points, 0);
@@ -75,6 +111,55 @@ export default async function PublicProfilePage({
 
   // Picks revealed only post-lock (groups phase deadline passed).
   const canSeePicks = groupsRevealed || isMe;
+
+  const teamsById = Object.fromEntries(allTeams.map((t) => [t.id, t]));
+
+  const teamsByGroup: Record<string, typeof allTeams> = {};
+  for (const l of GROUP_LETTERS) teamsByGroup[l] = [];
+  for (const t of allTeams) teamsByGroup[t.groupLetter]?.push(t);
+
+  const pickedByGroup: Record<string, Array<{ teamId: string; predictedPos: number }>> = {};
+  for (const p of groupPicks) {
+    (pickedByGroup[p.groupLetter] ??= []).push(p);
+  }
+
+  const initialOrders: Record<string, string[]> = {};
+  for (const l of GROUP_LETTERS) {
+    const groupTeams = teamsByGroup[l] ?? [];
+    const uPicks = (pickedByGroup[l] ?? []).sort((a, b) => a.predictedPos - b.predictedPos);
+    if (uPicks.length === 4) {
+      initialOrders[l] = uPicks.map((p) => p.teamId);
+    } else {
+      initialOrders[l] = groupTeams.map((t) => t.id);
+    }
+  }
+
+  const matchesByGroup: Record<string, typeof allGroupsMatches> = {};
+  for (const m of allGroupsMatches) {
+    const t = allTeams.find((x) => x.id === m.homeTeamId);
+    if (t) {
+      (matchesByGroup[t.groupLetter] ??= []).push(m);
+    }
+  }
+
+  const groupsData = {
+    initialOrders,
+    initialThirds: thirdPicks,
+    deadline: groupsPhase?.locksAt.toISOString() ?? "",
+    startedGroups: Array.from(startedGroupsSet),
+    matchesByGroup,
+  };
+
+  const koMatchesByPhase: Record<string, typeof koMatches> = {};
+  for (const m of koMatches) {
+    (koMatchesByPhase[m.phaseId] ??= []).push(m);
+  }
+
+  const koPicksByPhase: Record<string, Record<string, string>> = {};
+  for (const p of matchPicks) {
+    if (!koPicksByPhase[p.phaseId]) koPicksByPhase[p.phaseId] = {};
+    koPicksByPhase[p.phaseId][p.matchId] = p.predictedWinnerId!;
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-10 pt-10 pb-16">
@@ -190,97 +275,64 @@ export default async function PublicProfilePage({
         </div>
       </section>
 
-      {/* Group tops + Achievements */}
-      <section className="grid lg:grid-cols-[1.6fr,1fr] gap-7">
-        <div>
-          <div className="flex items-baseline justify-between mb-3.5">
-            <SectionLabel num="REC.">Tops de groupes prédits</SectionLabel>
-            <span className="font-mono text-[11px] tracking-[0.1em] text-[color:var(--paper-3)]">
-              {groupTops.length}/12 RENSEIGNÉS
-            </span>
-          </div>
-          {!canSeePicks ? (
-            <div
-              className="p-6 rounded-md text-[13px] text-[color:var(--paper-3)]"
-              style={{
-                background: "var(--ink-2)",
-                border: "1px dashed var(--line-strong)",
-              }}
-            >
-              🔒 Les picks de ce joueur deviendront publics après le coup
-              d&rsquo;envoi.
-            </div>
-          ) : groupTops.length === 0 ? (
-            <div
-              className="p-6 rounded-md text-[13px] text-[color:var(--paper-3)]"
-              style={{
-                background: "var(--ink-2)",
-                border: "1px solid var(--line)",
-              }}
-            >
-              Aucun pick enregistré.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {groupTops.map((g) => (
-                <div
-                  key={g.groupLetter}
-                  className="grid items-center gap-2 rounded-md"
-                  style={{
-                    gridTemplateColumns: "auto auto 1fr",
-                    padding: "10px 12px 10px 14px",
-                    background: "var(--ink-3)",
-                    border: "1px solid var(--line)",
-                  }}
-                >
-                  <span
-                    className="font-mono"
-                    style={{ fontSize: 10, color: "var(--paper-4)", letterSpacing: 0.8 }}
-                  >
-                    {g.groupLetter}
-                  </span>
-                  <TeamFlag code={g.teamId} height={14} />
-                  <span className="text-[13px] truncate text-[color:var(--paper-1)]">
-                    <span className="font-mono text-[11px] mr-2 text-[color:var(--paper-3)]">
-                      {g.teamId}
-                    </span>
-                    {g.teamNameFr}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Achievements */}
+      <section className="mb-7">
+        <SectionLabel num="ACH.">Badges &amp; faits d&rsquo;armes</SectionLabel>
+        <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <Badge
+            icon="⚡"
+            title="Premier locké"
+            sub="Picks lockés > 24h avant la deadline"
+            unlocked={badges.firstLocked}
+          />
+          <Badge
+            icon="🎯"
+            title="Madame Irma"
+            sub="≥ 9/12 tops de groupes exacts"
+            unlocked={badges.madameIrma}
+          />
+          <Badge
+            icon="🥉"
+            title="Le 3ème œil"
+            sub="≥ 6/8 meilleurs 3èmes corrects"
+            unlocked={badges.troisiemeOeil}
+          />
+          <Badge
+            icon="👑"
+            title="Royaume"
+            sub="Champion du monde prédit correctement"
+            unlocked={badges.royaume}
+          />
         </div>
+      </section>
 
-        <div>
-          <SectionLabel num="ACH.">Badges &amp; faits d&rsquo;armes</SectionLabel>
-          <div className="mt-3.5 grid gap-2.5">
-            <Badge
-              icon="⚡"
-              title="Premier locké"
-              sub="Picks lockés > 24h avant la deadline"
-              unlocked={badges.firstLocked}
-            />
-            <Badge
-              icon="🎯"
-              title="Madame Irma"
-              sub="≥ 9/12 tops de groupes exacts"
-              unlocked={badges.madameIrma}
-            />
-            <Badge
-              icon="🥉"
-              title="Le 3ème œil"
-              sub="≥ 6/8 meilleurs 3èmes corrects"
-              unlocked={badges.troisiemeOeil}
-            />
-            <Badge
-              icon="👑"
-              title="Royaume"
-              sub="Champion du monde prédit correctement"
-              unlocked={badges.royaume}
-            />
-          </div>
+      {/* Picks */}
+      <section>
+        <div className="flex items-baseline justify-between mb-3.5">
+          <SectionLabel num="CARTE">Carte de picks</SectionLabel>
+          <span className="font-mono text-[11px] tracking-[0.1em] text-[color:var(--paper-3)]">
+            {groupTops.length}/12 GROUPES
+          </span>
         </div>
+        {!canSeePicks ? (
+          <div
+            className="p-6 rounded-md text-[13px] text-[color:var(--paper-3)]"
+            style={{
+              background: "var(--ink-2)",
+              border: "1px dashed var(--line-strong)",
+            }}
+          >
+            🔒 Les picks de ce joueur deviendront publics après le coup d&rsquo;envoi.
+          </div>
+        ) : (
+          <PublicPicks
+            teamsById={teamsById}
+            groupsData={groupsData}
+            koPhases={koPhases}
+            koMatchesByPhase={koMatchesByPhase}
+            koPicksByPhase={koPicksByPhase}
+          />
+        )}
       </section>
 
       <div className="mt-10 text-center">
