@@ -234,7 +234,7 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, r
   return (
     <div className="w-full overflow-x-auto pb-6 custom-scrollbar">
       <div 
-        className="min-w-[1000px] flex items-stretch justify-between px-2"
+        className="w-full min-w-max flex items-stretch justify-between gap-2 px-2 lg:px-4"
         style={{ height: "640px" }}
       >
         {/* Left Tree */}
