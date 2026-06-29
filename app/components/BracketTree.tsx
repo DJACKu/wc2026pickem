@@ -103,11 +103,19 @@ function RoundColumn({ matches, teamsById, picksByPhase, phaseId, className = ""
 }
 
 export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, readOnlyPhases = {} }: BracketTreeProps) {
-  const r32 = matchesByPhase["r32"] || [];
-  const r16 = matchesByPhase["r16"] || [];
-  const qf = matchesByPhase["qf"] || [];
-  const sf = matchesByPhase["sf"] || [];
-  const finals = matchesByPhase["final"] || [];
+  const sortById = (matches: any[]) => {
+    return [...matches].sort((a, b) => {
+      const idA = parseInt(a.id.replace("fd-", "")) || 0;
+      const idB = parseInt(b.id.replace("fd-", "")) || 0;
+      return idA - idB;
+    });
+  };
+
+  const r32 = sortById(matchesByPhase["r32"] || []);
+  const r16 = sortById(matchesByPhase["r16"] || []);
+  const qf = sortById(matchesByPhase["qf"] || []);
+  const sf = sortById(matchesByPhase["sf"] || []);
+  const finals = sortById(matchesByPhase["final"] || []);
 
   // Left side
   const leftR32 = r32.slice(0, 8);
