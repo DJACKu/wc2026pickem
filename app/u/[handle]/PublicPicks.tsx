@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Match, Phase, Team } from "@/db/schema";
 import { GroupsPicker } from "@/app/picks/groups/GroupsPicker";
-import { BracketPicker } from "@/app/picks/[phase]/BracketPicker";
+import { BracketTree } from "@/app/components/BracketTree";
 
 type Props = {
   teamsById: Record<string, Team>;
@@ -22,7 +22,6 @@ type Props = {
 export function PublicPicks({
   teamsById,
   groupsData,
-  koPhases,
   koMatchesByPhase,
   koPicksByPhase,
 }: Props) {
@@ -52,9 +51,9 @@ export function PublicPicks({
         </button>
       </div>
 
-      <div className="mt-6" style={{ pointerEvents: "none" }}>
+      <div className="mt-6">
         {tab === "groups" && (
-          <div className="opacity-90">
+          <div className="opacity-90 pointer-events-none">
             <GroupsPicker
               teamsById={teamsById}
               initialOrders={groupsData.initialOrders}
@@ -70,31 +69,12 @@ export function PublicPicks({
         )}
 
         {tab === "ko" && (
-          <div className="flex flex-col gap-12 opacity-90">
-            {koPhases.map((phase) => {
-              const matches = koMatchesByPhase[phase.id] || [];
-              if (matches.length === 0) return null;
-              return (
-                <div key={phase.id}>
-                  <BracketPicker
-                    phaseId={phase.id}
-                    labelFr={phase.labelFr}
-                    info={undefined}
-                    matches={matches.map(m => ({
-                      id: m.id,
-                      homeTeamId: m.homeTeamId,
-                      awayTeamId: m.awayTeamId,
-                      kickoffAt: m.kickoffAt ? m.kickoffAt.toISOString() : null,
-                    }))}
-                    teamsById={teamsById}
-                    initialPicks={koPicksByPhase[phase.id] || {}}
-                    deadlinePassed={true}
-                    userLocked={true}
-                    deadline={phase.locksAt.toISOString()}
-                  />
-                </div>
-              );
-            })}
+          <div className="opacity-90 pointer-events-none bg-[var(--ink-2)] rounded-lg p-4 border border-[var(--line)]">
+            <BracketTree 
+              teamsById={teamsById} 
+              matchesByPhase={koMatchesByPhase} 
+              picksByPhase={koPicksByPhase} 
+            />
           </div>
         )}
       </div>
