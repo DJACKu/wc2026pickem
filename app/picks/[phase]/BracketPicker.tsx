@@ -271,14 +271,18 @@ function MatchCard({
 }) {
   const home = match.homeTeamId ? teamsById[match.homeTeamId] : null;
   const away = match.awayTeamId ? teamsById[match.awayTeamId] : null;
-  const kickoff = match.kickoffAt
-    ? new Date(match.kickoffAt).toLocaleString("fr-FR", {
+  const kickoffDate = match.kickoffAt ? new Date(match.kickoffAt) : null;
+  const kickoff = kickoffDate
+    ? kickoffDate.toLocaleString("fr-FR", {
         day: "2-digit",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
       })
     : null;
+
+  const matchStarted = kickoffDate ? kickoffDate.getTime() <= Date.now() : false;
+  const matchReadOnly = readOnly || matchStarted;
 
   return (
     <div
@@ -290,10 +294,11 @@ function MatchCard({
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         <span
-          className="font-mono"
+          className="font-mono flex items-center gap-2"
           style={{ fontSize: 10, letterSpacing: 1.2, color: "var(--paper-4)" }}
         >
           MATCH {String(idx).padStart(2, "0")}
+          {matchStarted && !readOnly && <span title="Match commencé" style={{ color: "var(--canada)" }}>🔒</span>}
         </span>
         {kickoff && (
           <span
@@ -307,14 +312,14 @@ function MatchCard({
       <MatchSide
         team={home}
         picked={picked === home?.id}
-        disabled={readOnly || !home}
+        disabled={matchReadOnly || !home}
         onClick={() => home && onPick(home.id)}
       />
       <div style={{ height: 1, background: "var(--line)" }} />
       <MatchSide
         team={away}
         picked={picked === away?.id}
-        disabled={readOnly || !away}
+        disabled={matchReadOnly || !away}
         onClick={() => away && onPick(away.id)}
       />
     </div>

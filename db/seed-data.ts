@@ -88,7 +88,7 @@ export const seedPhases = [
     id: "r32",
     labelFr: "16es de finale",
     opensAt: new Date("2026-06-27T22:00:00Z"),
-    locksAt: new Date("2026-06-28T18:50:00Z"), // 10 min avant 21h FR (19h UTC)
+    locksAt: new Date("2026-06-30T18:50:00Z"), // 10 min avant 21h FR (19h UTC) - Réouvert pour les retardataires
     sortOrder: 2,
   },
   {

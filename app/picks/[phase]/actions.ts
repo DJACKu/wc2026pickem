@@ -47,6 +47,9 @@ export async function saveMatchPick(input: z.infer<typeof saveSchema>) {
   if (m.homeTeamId !== winnerId && m.awayTeamId !== winnerId) {
     throw new Error("Équipe non valide pour ce match.");
   }
+  if (m.kickoffAt && new Date(m.kickoffAt).getTime() <= Date.now()) {
+    throw new Error("Trop tard, ce match a déjà commencé.");
+  }
 
   await assertPickable(user.id, phaseId);
 
