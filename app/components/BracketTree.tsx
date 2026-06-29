@@ -111,11 +111,45 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, r
     });
   };
 
+  const getWinner = (m: any, phaseId: string) => {
+    return picksByPhase?.[phaseId]?.[m?.id] || m?.winnerId;
+  };
+
   const r32 = sortById(matchesByPhase["r32"] || []);
-  const r16 = sortById(matchesByPhase["r16"] || []);
-  const qf = sortById(matchesByPhase["qf"] || []);
-  const sf = sortById(matchesByPhase["sf"] || []);
-  const finals = sortById(matchesByPhase["final"] || []);
+  
+  const r16 = sortById(matchesByPhase["r16"] || []).map((m, i) => ({
+    ...m,
+    homeTeamId: getWinner(r32[i * 2], "r32") || m.homeTeamId,
+    awayTeamId: getWinner(r32[i * 2 + 1], "r32") || m.awayTeamId,
+  }));
+
+  const qf = sortById(matchesByPhase["qf"] || []).map((m, i) => ({
+    ...m,
+    homeTeamId: getWinner(r16[i * 2], "r16") || m.homeTeamId,
+    awayTeamId: getWinner(r16[i * 2 + 1], "r16") || m.awayTeamId,
+  }));
+
+  const sf = sortById(matchesByPhase["sf"] || []).map((m, i) => ({
+    ...m,
+    homeTeamId: getWinner(qf[i * 2], "qf") || m.homeTeamId,
+    awayTeamId: getWinner(qf[i * 2 + 1], "qf") || m.awayTeamId,
+  }));
+
+  let finals = sortById(matchesByPhase["final"] || []);
+  if (finals.length === 2 && sf.length === 2) {
+    const sf0 = sf[0];
+    const sf1 = sf[1];
+    const sf0winner = getWinner(sf0, "sf");
+    const sf1winner = getWinner(sf1, "sf");
+    
+    const sf0loser = sf0winner === sf0?.homeTeamId ? sf0?.awayTeamId : (sf0winner === sf0?.awayTeamId ? sf0?.homeTeamId : null);
+    const sf1loser = sf1winner === sf1?.homeTeamId ? sf1?.awayTeamId : (sf1winner === sf1?.awayTeamId ? sf1?.homeTeamId : null);
+
+    finals = [
+      { ...finals[0], homeTeamId: sf0loser || finals[0].homeTeamId, awayTeamId: sf1loser || finals[0].awayTeamId }, // 3rd place
+      { ...finals[1], homeTeamId: sf0winner || finals[1].homeTeamId, awayTeamId: sf1winner || finals[1].awayTeamId }, // final
+    ];
+  }
 
   // Left side
   const leftR32 = r32.slice(0, 8);
