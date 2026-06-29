@@ -5,6 +5,8 @@ type MatchNode = {
   id: string;
   homeTeamId: string | null;
   awayTeamId: string | null;
+  realHomeTeamId?: string | null;
+  realAwayTeamId?: string | null;
   winnerId?: string | null;
   status?: string;
   pickedWinnerId?: string | null;
@@ -40,7 +42,16 @@ function MatchCard({
 
   const renderSide = (team: any, isHome: boolean) => {
     const isPicked = team && team.id === pickedWinnerId;
-    const canPick = !readOnly && team && onPick && !isFinished;
+    
+    // The user can only pick if the match is not readOnly, not finished, 
+    // and the team they are clicking is actually the REAL team in the DB for this match.
+    // (We fallback to match.homeTeamId if realHomeTeamId is undefined for R32).
+    const realIdForSide = isHome 
+      ? (match.realHomeTeamId !== undefined ? match.realHomeTeamId : match.homeTeamId)
+      : (match.realAwayTeamId !== undefined ? match.realAwayTeamId : match.awayTeamId);
+      
+    const isRealTeam = team && team.id === realIdForSide;
+    const canPick = !readOnly && team && onPick && !isFinished && isRealTeam;
     
     // Determine the colors based on whether the match is finished
     let bgColor = "bg-[var(--ink-2)]";
@@ -166,18 +177,24 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, r
   
   const r16 = sortById(matchesByPhase["r16"] || []).map((m, i) => ({
     ...m,
+    realHomeTeamId: m.homeTeamId,
+    realAwayTeamId: m.awayTeamId,
     homeTeamId: getWinner(r32[i * 2]) || m.homeTeamId,
     awayTeamId: getWinner(r32[i * 2 + 1]) || m.awayTeamId,
   }));
 
   const qf = sortById(matchesByPhase["qf"] || []).map((m, i) => ({
     ...m,
+    realHomeTeamId: m.homeTeamId,
+    realAwayTeamId: m.awayTeamId,
     homeTeamId: getWinner(r16[i * 2]) || m.homeTeamId,
     awayTeamId: getWinner(r16[i * 2 + 1]) || m.awayTeamId,
   }));
 
   const sf = sortById(matchesByPhase["sf"] || []).map((m, i) => ({
     ...m,
+    realHomeTeamId: m.homeTeamId,
+    realAwayTeamId: m.awayTeamId,
     homeTeamId: getWinner(qf[i * 2]) || m.homeTeamId,
     awayTeamId: getWinner(qf[i * 2 + 1]) || m.awayTeamId,
   }));
@@ -193,8 +210,8 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, r
     const sf1loser = sf1winner === sf1?.homeTeamId ? sf1?.awayTeamId : (sf1winner === sf1?.awayTeamId ? sf1?.homeTeamId : null);
 
     finals = [
-      { ...finals[0], homeTeamId: sf0loser || finals[0].homeTeamId, awayTeamId: sf1loser || finals[0].awayTeamId }, // 3rd place
-      { ...finals[1], homeTeamId: sf0winner || finals[1].homeTeamId, awayTeamId: sf1winner || finals[1].awayTeamId }, // final
+      { ...finals[0], realHomeTeamId: finals[0].homeTeamId, realAwayTeamId: finals[0].awayTeamId, homeTeamId: sf0loser || finals[0].homeTeamId, awayTeamId: sf1loser || finals[0].awayTeamId }, // 3rd place
+      { ...finals[1], realHomeTeamId: finals[1].homeTeamId, realAwayTeamId: finals[1].awayTeamId, homeTeamId: sf0winner || finals[1].homeTeamId, awayTeamId: sf1winner || finals[1].awayTeamId }, // final
     ];
   }
 

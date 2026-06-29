@@ -51,7 +51,8 @@ export default async function BracketHubPage() {
   const readOnlyPhases: Record<string, boolean> = {};
   for (const p of koPhasesList) {
     const deadlinePassed = new Date(p.locksAt).getTime() <= Date.now();
-    readOnlyPhases[p.id] = deadlinePassed || userLockedPhases[p.id];
+    const notOpenedYet = new Date(p.opensAt).getTime() > Date.now();
+    readOnlyPhases[p.id] = deadlinePassed || notOpenedYet || userLockedPhases[p.id];
   }
 
   return (
