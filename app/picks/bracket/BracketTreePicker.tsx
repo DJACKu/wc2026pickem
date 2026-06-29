@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Match, Phase, Team } from "@/db/schema";
 import { BracketTree } from "@/app/components/BracketTree";
-import { saveMatchPick, lockKoPhase } from "./actions";
+import { saveMatchPick, lockKoPhase, unlockKoPhase } from "./actions";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { LockIcon } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
@@ -68,6 +68,19 @@ export function BracketTreePicker({
     }
   };
 
+  const handleUnlock = async (phaseId: string) => {
+    if (!confirm("Es-tu sûr de vouloir déverrouiller tes picks ? Tu pourras à nouveau les modifier avant la deadline.")) return;
+    setSaving(true);
+    try {
+      await unlockKoPhase({ phaseId: phaseId as any });
+      router.refresh();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Erreur de déverrouillage.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Controls & Status */}
@@ -98,10 +111,15 @@ export function BracketTreePicker({
                   {phase.labelFr}:
                 </span>
                 {isLocked ? (
-                  <span className="font-mono text-[11px] tracking-[0.12em] inline-flex items-center gap-1.5 text-[var(--mexico)] border border-[var(--mexico)] px-2 py-1 rounded">
+                  <button
+                    onClick={() => handleUnlock(phase.id)}
+                    disabled={saving}
+                    className="font-mono text-[11px] tracking-[0.12em] inline-flex items-center gap-1.5 text-[var(--mexico)] border border-[var(--mexico)] px-2 py-1 rounded hover:bg-[var(--mexico)] hover:text-black transition-colors"
+                    title="Cliquer pour déverrouiller"
+                  >
                     <LockIcon size={12} />
                     LOCKÉ
-                  </span>
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleLock(phase.id)}
