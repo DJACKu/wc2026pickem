@@ -5,7 +5,10 @@ type MatchNode = {
   id: string;
   homeTeamId: string | null;
   awayTeamId: string | null;
+  winnerId?: string | null;
+  status?: string;
   pickedWinnerId?: string | null;
+  kickoffAt?: string | Date | null;
 };
 
 type BracketTreeProps = {
@@ -32,26 +35,56 @@ function MatchCard({
   const home = match?.homeTeamId ? teamsById[match.homeTeamId] : null;
   const away = match?.awayTeamId ? teamsById[match.awayTeamId] : null;
 
+  const isFinished = match?.status === "finished";
+  const realWinnerId = match?.winnerId;
+
   const renderSide = (team: any, isHome: boolean) => {
     const isPicked = team && team.id === pickedWinnerId;
-    const canPick = !readOnly && team && onPick;
+    const canPick = !readOnly && team && onPick && !isFinished;
+    
+    // Determine the colors based on whether the match is finished
+    let bgColor = "bg-[var(--ink-2)]";
+    let textColor = "var(--paper-4)";
+    let opacity = 1;
+
+    if (isFinished) {
+      if (isPicked) {
+        // Did they pick the actual winner?
+        if (realWinnerId === pickedWinnerId) {
+          bgColor = "bg-emerald-950/40"; // Correct pick!
+          textColor = "#34d399"; // emerald-400
+        } else {
+          bgColor = "bg-red-950/40"; // Wrong pick!
+          textColor = "#f87171"; // red-400
+        }
+      } else if (team && team.id === realWinnerId) {
+        // This team won, but the user didn't pick it
+        textColor = "var(--paper-2)";
+      } else {
+        // This team lost
+        opacity = 0.5;
+      }
+    } else {
+      // Not finished yet
+      if (isPicked) {
+        bgColor = "bg-[var(--ink-4)]";
+        textColor = "var(--paper-1)";
+      }
+    }
     
     return (
       <div
         onClick={() => canPick && onPick(team.id)}
-        className={`flex items-center gap-2 px-2 py-1.5 transition-colors ${
-          isPicked ? "bg-[var(--ink-4)]" : "bg-[var(--ink-2)]"
-        } ${canPick ? "cursor-pointer hover:bg-[var(--ink-3)]" : ""}`}
+        className={`flex items-center gap-2 px-2 py-1.5 transition-colors ${bgColor} ${canPick ? "cursor-pointer hover:bg-[var(--ink-3)]" : ""}`}
         style={{
           borderBottom: isHome ? "1px solid var(--line)" : "none",
+          opacity,
         }}
       >
         <TeamFlag code={team?.id} height={14} />
         <span
           className="text-[12px] truncate max-w-[90px] w-full font-medium"
-          style={{
-            color: isPicked ? "var(--paper-1)" : "var(--paper-4)",
-          }}
+          style={{ color: textColor }}
         >
           {team?.id ? team.nameFr : "TBD"}
         </span>
@@ -61,20 +94,34 @@ function MatchCard({
 
   if (!match) return <div className="w-[140px] h-[52px] opacity-0" />;
 
-  const kickoffDate = (match as any).kickoffAt ? new Date((match as any).kickoffAt) : null;
+  const kickoffDate = match.kickoffAt ? new Date(match.kickoffAt) : null;
   const matchStarted = kickoffDate ? kickoffDate.getTime() <= Date.now() : false;
   const matchReadOnly = readOnly || matchStarted;
+
+  // Add a subtle border color if it was a finished match and the user made a pick
+  let borderColor = pickedWinnerId ? "var(--paper-1)" : "var(--line)";
+  let shadow = pickedWinnerId ? "0 0 10px rgba(255,255,255,0.1)" : "none";
+
+  if (isFinished && pickedWinnerId) {
+    if (pickedWinnerId === realWinnerId) {
+      borderColor = "#34d399"; // Green border for win
+      shadow = "0 0 8px rgba(52, 211, 153, 0.2)";
+    } else {
+      borderColor = "#f87171"; // Red border for loss
+      shadow = "0 0 8px rgba(248, 113, 113, 0.2)";
+    }
+  }
 
   return (
     <div
       className="w-[140px] rounded-md overflow-hidden flex flex-col shrink-0 relative"
       style={{
-        border: pickedWinnerId ? "1px solid var(--paper-1)" : "1px solid var(--line)",
-        boxShadow: pickedWinnerId ? "0 0 10px rgba(255,255,255,0.1)" : "none",
-        opacity: matchReadOnly ? 0.7 : 1,
+        border: `1px solid ${borderColor}`,
+        boxShadow: shadow,
+        opacity: matchReadOnly && !isFinished ? 0.7 : 1,
       }}
     >
-      {matchStarted && !readOnly && (
+      {matchStarted && !readOnly && !isFinished && (
         <div className="absolute top-0 right-0 bg-[var(--ink-2)] px-1 rounded-bl text-[8px] z-10" style={{borderLeft: "1px solid var(--line)", borderBottom: "1px solid var(--line)"}}>
           🔒
         </div>
@@ -111,36 +158,36 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, r
     });
   };
 
-  const getWinner = (m: any, phaseId: string) => {
-    return picksByPhase?.[phaseId]?.[m?.id] || m?.winnerId;
+  const getWinner = (m: any) => {
+    return m?.winnerId; // Only propagate the REAL winner set by admin
   };
 
   const r32 = sortById(matchesByPhase["r32"] || []);
   
   const r16 = sortById(matchesByPhase["r16"] || []).map((m, i) => ({
     ...m,
-    homeTeamId: getWinner(r32[i * 2], "r32") || m.homeTeamId,
-    awayTeamId: getWinner(r32[i * 2 + 1], "r32") || m.awayTeamId,
+    homeTeamId: getWinner(r32[i * 2]) || m.homeTeamId,
+    awayTeamId: getWinner(r32[i * 2 + 1]) || m.awayTeamId,
   }));
 
   const qf = sortById(matchesByPhase["qf"] || []).map((m, i) => ({
     ...m,
-    homeTeamId: getWinner(r16[i * 2], "r16") || m.homeTeamId,
-    awayTeamId: getWinner(r16[i * 2 + 1], "r16") || m.awayTeamId,
+    homeTeamId: getWinner(r16[i * 2]) || m.homeTeamId,
+    awayTeamId: getWinner(r16[i * 2 + 1]) || m.awayTeamId,
   }));
 
   const sf = sortById(matchesByPhase["sf"] || []).map((m, i) => ({
     ...m,
-    homeTeamId: getWinner(qf[i * 2], "qf") || m.homeTeamId,
-    awayTeamId: getWinner(qf[i * 2 + 1], "qf") || m.awayTeamId,
+    homeTeamId: getWinner(qf[i * 2]) || m.homeTeamId,
+    awayTeamId: getWinner(qf[i * 2 + 1]) || m.awayTeamId,
   }));
 
   let finals = sortById(matchesByPhase["final"] || []);
   if (finals.length === 2 && sf.length === 2) {
     const sf0 = sf[0];
     const sf1 = sf[1];
-    const sf0winner = getWinner(sf0, "sf");
-    const sf1winner = getWinner(sf1, "sf");
+    const sf0winner = getWinner(sf0);
+    const sf1winner = getWinner(sf1);
     
     const sf0loser = sf0winner === sf0?.homeTeamId ? sf0?.awayTeamId : (sf0winner === sf0?.awayTeamId ? sf0?.homeTeamId : null);
     const sf1loser = sf1winner === sf1?.homeTeamId ? sf1?.awayTeamId : (sf1winner === sf1?.awayTeamId ? sf1?.homeTeamId : null);
