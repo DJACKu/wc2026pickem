@@ -12,27 +12,36 @@ type BracketTreeProps = {
   teamsById: Record<string, any>;
   matchesByPhase: Record<string, any[]>;
   picksByPhase: Record<string, Record<string, string>>;
+  onPick?: (phaseId: string, matchId: string, teamId: string) => void;
+  readOnlyPhases?: Record<string, boolean>;
 };
 
 function MatchCard({
   match,
   teamsById,
   pickedWinnerId,
+  onPick,
+  readOnly,
 }: {
   match: MatchNode;
   teamsById: Record<string, any>;
   pickedWinnerId?: string | null;
+  onPick?: (teamId: string) => void;
+  readOnly?: boolean;
 }) {
   const home = match?.homeTeamId ? teamsById[match.homeTeamId] : null;
   const away = match?.awayTeamId ? teamsById[match.awayTeamId] : null;
 
   const renderSide = (team: any, isHome: boolean) => {
     const isPicked = team && team.id === pickedWinnerId;
+    const canPick = !readOnly && team && onPick;
+    
     return (
       <div
+        onClick={() => canPick && onPick(team.id)}
         className={`flex items-center gap-2 px-2 py-1.5 transition-colors ${
           isPicked ? "bg-[var(--ink-4)]" : "bg-[var(--ink-2)]"
-        }`}
+        } ${canPick ? "cursor-pointer hover:bg-[var(--ink-3)]" : ""}`}
         style={{
           borderBottom: isHome ? "1px solid var(--line)" : "none",
         }}
@@ -52,21 +61,31 @@ function MatchCard({
 
   if (!match) return <div className="w-[140px] h-[52px] opacity-0" />;
 
+  const kickoffDate = (match as any).kickoffAt ? new Date((match as any).kickoffAt) : null;
+  const matchStarted = kickoffDate ? kickoffDate.getTime() <= Date.now() : false;
+  const matchReadOnly = readOnly || matchStarted;
+
   return (
     <div
       className="w-[140px] rounded-md overflow-hidden flex flex-col shrink-0 relative"
       style={{
         border: pickedWinnerId ? "1px solid var(--paper-1)" : "1px solid var(--line)",
         boxShadow: pickedWinnerId ? "0 0 10px rgba(255,255,255,0.1)" : "none",
+        opacity: matchReadOnly ? 0.7 : 1,
       }}
     >
+      {matchStarted && !readOnly && (
+        <div className="absolute top-0 right-0 bg-[var(--ink-2)] px-1 rounded-bl text-[8px] z-10" style={{borderLeft: "1px solid var(--line)", borderBottom: "1px solid var(--line)"}}>
+          🔒
+        </div>
+      )}
       {renderSide(home, true)}
       {renderSide(away, false)}
     </div>
   );
 }
 
-function RoundColumn({ matches, teamsById, picksByPhase, phaseId, className = "" }: any) {
+function RoundColumn({ matches, teamsById, picksByPhase, phaseId, className = "", onPick, readOnly }: any) {
   return (
     <div className={`flex flex-col justify-around h-full py-4 ${className}`}>
       {matches.map((m: any, i: number) => (
@@ -75,13 +94,15 @@ function RoundColumn({ matches, teamsById, picksByPhase, phaseId, className = ""
           match={m}
           teamsById={teamsById}
           pickedWinnerId={picksByPhase?.[phaseId]?.[m?.id]}
+          onPick={onPick ? (teamId: string) => onPick(phaseId, m.id, teamId) : undefined}
+          readOnly={readOnly}
         />
       ))}
     </div>
   );
 }
 
-export function BracketTree({ teamsById, matchesByPhase, picksByPhase }: BracketTreeProps) {
+export function BracketTree({ teamsById, matchesByPhase, picksByPhase, onPick, readOnlyPhases = {} }: BracketTreeProps) {
   const r32 = matchesByPhase["r32"] || [];
   const r16 = matchesByPhase["r16"] || [];
   const qf = matchesByPhase["qf"] || [];
@@ -111,28 +132,28 @@ export function BracketTree({ teamsById, matchesByPhase, picksByPhase }: Bracket
         style={{ height: "640px" }}
       >
         {/* Left Tree */}
-        <RoundColumn matches={leftR32} phaseId="r32" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={leftR16} phaseId="r16" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={leftQf} phaseId="qf" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={leftSf} phaseId="sf" teamsById={teamsById} picksByPhase={picksByPhase} />
+        <RoundColumn matches={leftR32} phaseId="r32" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["r32"]} />
+        <RoundColumn matches={leftR16} phaseId="r16" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["r16"]} />
+        <RoundColumn matches={leftQf} phaseId="qf" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["qf"]} />
+        <RoundColumn matches={leftSf} phaseId="sf" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["sf"]} />
 
         {/* Center (Finals) */}
         <div className="flex flex-col justify-center items-center px-4 gap-8">
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-mono text-[var(--paper-4)] mb-2 tracking-widest">🏆 FINALE</span>
-            <MatchCard match={grandFinal} teamsById={teamsById} pickedWinnerId={picksByPhase?.["final"]?.[grandFinal?.id]} />
+            <MatchCard match={grandFinal} teamsById={teamsById} pickedWinnerId={picksByPhase?.["final"]?.[grandFinal?.id]} onPick={onPick ? (t) => onPick("final", grandFinal?.id, t) : undefined} readOnly={readOnlyPhases["final"]} />
           </div>
           <div className="flex flex-col items-center opacity-75 scale-90">
             <span className="text-[10px] font-mono text-[var(--paper-4)] mb-2 tracking-widest">3ÈME PLACE</span>
-            <MatchCard match={thirdPlace} teamsById={teamsById} pickedWinnerId={picksByPhase?.["final"]?.[thirdPlace?.id]} />
+            <MatchCard match={thirdPlace} teamsById={teamsById} pickedWinnerId={picksByPhase?.["final"]?.[thirdPlace?.id]} onPick={onPick ? (t) => onPick("final", thirdPlace?.id, t) : undefined} readOnly={readOnlyPhases["final"]} />
           </div>
         </div>
 
         {/* Right Tree */}
-        <RoundColumn matches={rightSf} phaseId="sf" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={rightQf} phaseId="qf" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={rightR16} phaseId="r16" teamsById={teamsById} picksByPhase={picksByPhase} />
-        <RoundColumn matches={rightR32} phaseId="r32" teamsById={teamsById} picksByPhase={picksByPhase} />
+        <RoundColumn matches={rightSf} phaseId="sf" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["sf"]} />
+        <RoundColumn matches={rightQf} phaseId="qf" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["qf"]} />
+        <RoundColumn matches={rightR16} phaseId="r16" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["r16"]} />
+        <RoundColumn matches={rightR32} phaseId="r32" teamsById={teamsById} picksByPhase={picksByPhase} onPick={onPick} readOnly={readOnlyPhases["r32"]} />
       </div>
     </div>
   );

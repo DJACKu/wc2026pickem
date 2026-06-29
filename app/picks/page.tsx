@@ -139,7 +139,7 @@ export default async function PicksHub() {
           } else if (KO_PHASES.has(p.id)) {
             const total = koTotal[p.id] ?? 0;
             progress = { picked: koPicked[p.id] ?? 0, total };
-            href = `/picks/${p.id}`;
+            href = `/picks/bracket`;
           }
 
           const status: "open" | "locked" | "scored" | "upcoming" | "closing" =
