@@ -3,6 +3,7 @@ import { asc } from "drizzle-orm";
 import Link from "next/link";
 import { Display } from "@/components/ui/Display";
 import { TeamFlag } from "@/components/ui/TeamFlag";
+import { TodayNav } from "./TodayNav";
 
 export const dynamic = "force-dynamic";
 
@@ -47,43 +48,7 @@ export default async function TodayPage() {
     <div className="max-w-4xl mx-auto px-6 py-10">
       <Display size={48} className="mb-8">Calendrier & Résultats</Display>
       
-      {/* Date Selector (Anchor links) */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-8 snap-x custom-scrollbar sticky top-[60px] z-20 bg-[var(--ink-1)] pt-4 border-b border-[var(--line)]">
-        {sortedDates.map(date => {
-          const isToday = date === nowUS;
-          const dateObj = new Date(`${date}T12:00:00Z`);
-          const label = dateObj.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-          
-          return (
-            <a
-              key={date}
-              href={`#day-${date}`}
-              className="snap-start shrink-0 px-4 py-2 rounded-full font-mono text-[13px] tracking-wide uppercase transition-colors"
-              style={{
-                background: isToday ? "var(--ink-3)" : "var(--ink-2)",
-                color: isToday ? "var(--paper-1)" : "var(--paper-3)",
-                border: isToday ? "1px solid var(--paper-3)" : "1px solid var(--line)",
-              }}
-            >
-              {label}
-            </a>
-          );
-        })}
-      </div>
-
-      {/* Auto-scroll script */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.addEventListener('DOMContentLoaded', () => {
-              if (!window.location.hash) {
-                const el = document.getElementById('day-${scrollTarget}');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            });
-          `
-        }}
-      />
+      <TodayNav sortedDates={sortedDates} initialTarget={scrollTarget} />
 
       {/* Matches List per Date */}
       <div>
