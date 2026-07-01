@@ -340,6 +340,10 @@ export async function syncBracketFromFootballData() {
     if (awayTla && !awayId) { teamLookupMisses++; console.warn(`[sync] Unknown away TLA: ${awayTla}`); }
 
     const kickoff = fd.utcDate ? new Date(fd.utcDate) : null;
+    if (kickoff && kickoff.getFullYear() < 2026) {
+      skipped++;
+      continue;
+    }
 
     const winnerHome = fd.score?.winner === "HOME_TEAM";
     const winnerAway = fd.score?.winner === "AWAY_TEAM";
