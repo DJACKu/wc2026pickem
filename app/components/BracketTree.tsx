@@ -11,6 +11,10 @@ type MatchNode = {
   status?: string;
   pickedWinnerId?: string | null;
   kickoffAt?: string | Date | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
 };
 
 type BracketTreeProps = {
@@ -83,6 +87,11 @@ function MatchCard({
       }
     }
     
+    const score = isHome ? match.homeScore : match.awayScore;
+    const penaltyScore = isHome ? match.homePenaltyScore : match.awayPenaltyScore;
+    const hasScore = score != null;
+    const hasPenalties = match.homePenaltyScore != null && match.awayPenaltyScore != null;
+
     return (
       <div
         onClick={() => canPick && onPick(team.id)}
@@ -94,11 +103,21 @@ function MatchCard({
       >
         <TeamFlag code={team?.id} height={14} />
         <span
-          className="text-[12px] truncate max-w-[90px] w-full font-medium"
+          className="text-[12px] truncate flex-1 font-medium"
           style={{ color: textColor }}
         >
           {team?.id ? team.nameFr : "TBD"}
         </span>
+        {hasScore && (
+          <span className="text-[12px] font-bold shrink-0 tabular-nums ml-1 flex items-center gap-1" style={{ color: textColor }}>
+            {score}
+            {hasPenalties && (
+              <span className="text-[9px] text-[var(--paper-4)] font-normal">
+                ({penaltyScore})
+              </span>
+            )}
+          </span>
+        )}
       </div>
     );
   };

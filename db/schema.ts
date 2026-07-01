@@ -70,6 +70,8 @@ export const matches = pgTable(
     kickoffAt: timestamp("kickoff_at", { withTimezone: true }),
     homeScore: integer("home_score"),
     awayScore: integer("away_score"),
+    homePenaltyScore: integer("home_penalty_score"),
+    awayPenaltyScore: integer("away_penalty_score"),
     winnerId: text("winner_id").references(() => teams.id),
     status: matchStatusEnum("status").notNull().default("scheduled"),
     manualOverride: boolean("manual_override").notNull().default(false),
