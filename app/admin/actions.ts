@@ -351,6 +351,11 @@ export async function syncBracketFromFootballData() {
           ? "live"
           : "scheduled";
 
+    const hs = fd.score?.fullTime?.home ?? (fd.score?.fullTime as any)?.homeTeam ?? fd.score?.regularTime?.home ?? (fd.score?.regularTime as any)?.homeTeam ?? null;
+    const as = fd.score?.fullTime?.away ?? (fd.score?.fullTime as any)?.awayTeam ?? fd.score?.regularTime?.away ?? (fd.score?.regularTime as any)?.awayTeam ?? null;
+    const hps = fd.score?.penalties?.home ?? (fd.score?.penalties as any)?.homeTeam ?? null;
+    const aps = fd.score?.penalties?.away ?? (fd.score?.penalties as any)?.awayTeam ?? null;
+
     const [existing] = await db
       .select()
       .from(matches)
@@ -369,10 +374,10 @@ export async function syncBracketFromFootballData() {
           homeTeamId: homeId,
           awayTeamId: awayId,
           kickoffAt: kickoff,
-          homeScore: fd.score?.fullTime?.home ?? null,
-          awayScore: fd.score?.fullTime?.away ?? null,
-          homePenaltyScore: fd.score?.penalties?.home ?? null,
-          awayPenaltyScore: fd.score?.penalties?.away ?? null,
+          homeScore: hs,
+          awayScore: as,
+          homePenaltyScore: hps,
+          awayPenaltyScore: aps,
           winnerId,
           status,
         })
@@ -385,10 +390,10 @@ export async function syncBracketFromFootballData() {
         homeTeamId: homeId,
         awayTeamId: awayId,
         kickoffAt: kickoff,
-        homeScore: fd.score?.fullTime?.home ?? null,
-        awayScore: fd.score?.fullTime?.away ?? null,
-        homePenaltyScore: fd.score?.penalties?.home ?? null,
-        awayPenaltyScore: fd.score?.penalties?.away ?? null,
+        homeScore: hs,
+        awayScore: as,
+        homePenaltyScore: hps,
+        awayPenaltyScore: aps,
         winnerId,
         status,
       });
