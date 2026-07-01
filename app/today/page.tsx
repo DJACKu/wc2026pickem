@@ -6,7 +6,7 @@ import { TeamFlag } from "@/components/ui/TeamFlag";
 
 export const dynamic = "force-dynamic";
 
-export default async function TodayPage({ searchParams }: { searchParams: { date?: string } }) {
+export default async function TodayPage() {
   const allMatches = await db.select().from(matches).orderBy(asc(matches.kickoffAt));
   const allTeams = await db.select().from(teams);
   const teamsById = Object.fromEntries(allTeams.map(t => [t.id, t]));
@@ -38,44 +38,65 @@ export default async function TodayPage({ searchParams }: { searchParams: { date
   const nowParts = formatter.formatToParts(now);
   const nowUS = `${nowParts.find(p=>p.type==="year")!.value}-${nowParts.find(p=>p.type==="month")!.value}-${nowParts.find(p=>p.type==="day")!.value}`;
 
-  let selectedDate = searchParams.date;
-  if (!selectedDate || !matchesByDate.has(selectedDate)) {
-    // On trouve le jour US le plus proche d'aujourd'hui, sinon le dernier jour
-    selectedDate = sortedDates.find(d => d >= nowUS) ?? sortedDates[sortedDates.length - 1];
+  let scrollTarget = nowUS;
+  if (!matchesByDate.has(nowUS)) {
+    scrollTarget = sortedDates.find(d => d >= nowUS) ?? sortedDates[sortedDates.length - 1];
   }
-
-  const dayMatches = matchesByDate.get(selectedDate) ?? [];
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
-      <Display size={48} className="mb-8">Matchs du Jour</Display>
+      <Display size={48} className="mb-8">Calendrier & Résultats</Display>
       
-      {/* Date Selector */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-8 snap-x no-scrollbar">
+      {/* Date Selector (Anchor links) */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-8 snap-x custom-scrollbar sticky top-[60px] z-20 bg-[var(--ink-1)] pt-4 border-b border-[var(--line)]">
         {sortedDates.map(date => {
-          const isSelected = date === selectedDate;
+          const isToday = date === nowUS;
           const dateObj = new Date(`${date}T12:00:00Z`);
           const label = dateObj.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
           
           return (
-            <Link
+            <a
               key={date}
-              href={`/today?date=${date}`}
+              href={`#day-${date}`}
               className="snap-start shrink-0 px-4 py-2 rounded-full font-mono text-[13px] tracking-wide uppercase transition-colors"
               style={{
-                background: isSelected ? "var(--paper-1)" : "var(--ink-2)",
-                color: isSelected ? "var(--ink-1)" : "var(--paper-3)",
-                border: isSelected ? "1px solid var(--paper-1)" : "1px solid var(--line)",
+                background: isToday ? "var(--ink-3)" : "var(--ink-2)",
+                color: isToday ? "var(--paper-1)" : "var(--paper-3)",
+                border: isToday ? "1px solid var(--paper-3)" : "1px solid var(--line)",
               }}
             >
               {label}
-            </Link>
+            </a>
           );
         })}
       </div>
 
-      {/* Matches List */}
-      <div className="grid gap-4">
+      {/* Auto-scroll script */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.addEventListener('DOMContentLoaded', () => {
+              if (!window.location.hash) {
+                const el = document.getElementById('day-${scrollTarget}');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            });
+          `
+        }}
+      />
+
+      {/* Matches List per Date */}
+      <div>
+        {sortedDates.map(date => {
+          const dateObj = new Date(`${date}T12:00:00Z`);
+          const dayMatches = matchesByDate.get(date) ?? [];
+          
+          return (
+            <section key={date} id={`day-${date}`} className="mb-12 scroll-mt-32">
+              <h2 className="font-mono text-[13px] text-[color:var(--paper-3)] uppercase tracking-widest mb-4">
+                {dateObj.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+              </h2>
+              <div className="grid gap-4">
         {dayMatches.map(m => {
           const h = m.homeTeamId ? teamsById[m.homeTeamId] : null;
           const a = m.awayTeamId ? teamsById[m.awayTeamId] : null;
@@ -116,8 +137,11 @@ export default async function TodayPage({ searchParams }: { searchParams: { date
                     {h ? <TeamFlag code={h.id} height={20} /> : <div className="w-[30px] h-[20px] bg-[var(--ink-3)] rounded" />}
                     <span className="font-bold text-[16px] text-[color:var(--paper-1)]">{h?.nameFr ?? m.homeTeamId ?? "À déterminer"}</span>
                   </div>
-                  <span className="font-mono text-[22px] font-bold" style={{ color: "var(--paper-1)" }}>
+                  <span className="font-mono text-[22px] font-bold flex items-baseline gap-2" style={{ color: "var(--paper-1)" }}>
                     {m.homeScore ?? "-"}
+                    {m.homePenaltyScore != null && (
+                      <span className="text-[12px] text-[var(--paper-4)] font-normal">({m.homePenaltyScore} tab)</span>
+                    )}
                   </span>
                 </div>
                 
@@ -126,8 +150,11 @@ export default async function TodayPage({ searchParams }: { searchParams: { date
                     {a ? <TeamFlag code={a.id} height={20} /> : <div className="w-[30px] h-[20px] bg-[var(--ink-3)] rounded" />}
                     <span className="font-bold text-[16px] text-[color:var(--paper-1)]">{a?.nameFr ?? m.awayTeamId ?? "À déterminer"}</span>
                   </div>
-                  <span className="font-mono text-[22px] font-bold" style={{ color: "var(--paper-1)" }}>
+                  <span className="font-mono text-[22px] font-bold flex items-baseline gap-2" style={{ color: "var(--paper-1)" }}>
                     {m.awayScore ?? "-"}
+                    {m.awayPenaltyScore != null && (
+                      <span className="text-[12px] text-[var(--paper-4)] font-normal">({m.awayPenaltyScore} tab)</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -135,6 +162,10 @@ export default async function TodayPage({ searchParams }: { searchParams: { date
               <div className="hidden sm:block w-32 shrink-0" /> {/* Spacer */}
 
             </div>
+          );
+        })}
+              </div>
+            </section>
           );
         })}
       </div>
