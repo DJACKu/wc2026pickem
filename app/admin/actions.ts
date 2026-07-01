@@ -253,6 +253,7 @@ type FdMatch = {
   awayTeam?: { tla?: string | null; shortName?: string | null };
   score?: {
     fullTime?: { home: number | null; away: number | null };
+    penalties?: { home: number | null; away: number | null };
     winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
   };
 };
@@ -370,6 +371,8 @@ export async function syncBracketFromFootballData() {
           kickoffAt: kickoff,
           homeScore: fd.score?.fullTime?.home ?? null,
           awayScore: fd.score?.fullTime?.away ?? null,
+          homePenaltyScore: fd.score?.penalties?.home ?? null,
+          awayPenaltyScore: fd.score?.penalties?.away ?? null,
           winnerId,
           status,
         })
@@ -384,6 +387,8 @@ export async function syncBracketFromFootballData() {
         kickoffAt: kickoff,
         homeScore: fd.score?.fullTime?.home ?? null,
         awayScore: fd.score?.fullTime?.away ?? null,
+        homePenaltyScore: fd.score?.penalties?.home ?? null,
+        awayPenaltyScore: fd.score?.penalties?.away ?? null,
         winnerId,
         status,
       });
