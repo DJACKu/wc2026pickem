@@ -69,7 +69,7 @@ export function PublicPicks({
         )}
 
         {tab === "ko" && (
-          <div className="opacity-90 pointer-events-none bg-[var(--ink-2)] rounded-lg p-4 border border-[var(--line)]">
+          <div className="opacity-90 bg-[var(--ink-2)] rounded-lg p-4 border border-[var(--line)]">
             <BracketTree 
               teamsById={teamsById} 
               matchesByPhase={koMatchesByPhase} 
