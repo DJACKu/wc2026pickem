@@ -253,6 +253,7 @@ type FdMatch = {
   awayTeam?: { tla?: string | null; shortName?: string | null };
   score?: {
     fullTime?: { home: number | null; away: number | null };
+    regularTime?: { home: number | null; away: number | null };
     penalties?: { home: number | null; away: number | null };
     winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
   };

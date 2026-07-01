@@ -6,6 +6,11 @@ export function TodayNav({ sortedDates, initialTarget }: { sortedDates: string[]
   const [activeDate, setActiveDate] = useState(initialTarget);
 
   useEffect(() => {
+    const scrollToEl = (el: HTMLElement) => {
+      const y = el.getBoundingClientRect().top + window.scrollY - 160;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    };
+
     // 1) Initial check if there's a hash in URL
     if (window.location.hash) {
       const hashDate = window.location.hash.replace("#day-", "");
@@ -13,13 +18,13 @@ export function TodayNav({ sortedDates, initialTarget }: { sortedDates: string[]
         setActiveDate(hashDate);
         // Small timeout to ensure layout is done before scrolling
         const el = document.getElementById(`day-${hashDate}`);
-        if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        if (el) setTimeout(() => scrollToEl(el), 100);
       }
     } else {
       // 2) If no hash, auto-scroll to initialTarget
       const el = document.getElementById(`day-${initialTarget}`);
       if (el) {
-        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        setTimeout(() => scrollToEl(el), 100);
       }
     }
 
@@ -39,7 +44,7 @@ export function TodayNav({ sortedDates, initialTarget }: { sortedDates: string[]
         setActiveDate(d);
       }
     }, {
-      rootMargin: "-20% 0px -60% 0px", // triggers when element reaches top 20%-40% of viewport
+      rootMargin: "-150px 0px -60% 0px", // triggers when element reaches ~150px from top
       threshold: [0, 0.25, 0.5, 0.75, 1]
     });
 
@@ -62,7 +67,8 @@ export function TodayNav({ sortedDates, initialTarget }: { sortedDates: string[]
     setActiveDate(date);
     const el = document.getElementById(`day-${date}`);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const y = el.getBoundingClientRect().top + window.scrollY - 160;
+      window.scrollTo({ top: y, behavior: "smooth" });
       window.history.pushState(null, "", `#day-${date}`);
     }
   };
