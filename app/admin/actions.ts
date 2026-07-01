@@ -148,6 +148,8 @@ const resultSchema = z.object({
   matchId: z.string().min(1),
   homeScore: z.string(),
   awayScore: z.string(),
+  homePenaltyScore: z.string().optional(),
+  awayPenaltyScore: z.string().optional(),
   winnerId: z.string().min(2),
   status: z.enum(matchStatusEnum.enumValues).default("finished"),
 });
@@ -158,14 +160,23 @@ export async function setMatchResult(formData: FormData) {
     matchId: formData.get("matchId"),
     homeScore: formData.get("homeScore") ?? "0",
     awayScore: formData.get("awayScore") ?? "0",
+    homePenaltyScore: formData.get("homePenaltyScore") ?? "",
+    awayPenaltyScore: formData.get("awayPenaltyScore") ?? "",
     winnerId: formData.get("winnerId"),
     status: formData.get("status") ?? "finished",
   });
   const hs = Number(data.homeScore);
   const as = Number(data.awayScore);
+  
+  const hps = data.homePenaltyScore ? Number(data.homePenaltyScore) : null;
+  const aps = data.awayPenaltyScore ? Number(data.awayPenaltyScore) : null;
+
   if (!Number.isFinite(hs) || !Number.isFinite(as)) {
     throw new Error("Scores invalides.");
   }
+  if (hps !== null && !Number.isFinite(hps)) throw new Error("Scores TAB invalides.");
+  if (aps !== null && !Number.isFinite(aps)) throw new Error("Scores TAB invalides.");
+
   const [m] = await db
     .select()
     .from(matches)
@@ -180,6 +191,8 @@ export async function setMatchResult(formData: FormData) {
     .set({
       homeScore: hs,
       awayScore: as,
+      homePenaltyScore: hps,
+      awayPenaltyScore: aps,
       winnerId: data.winnerId,
       status: data.status,
       manualOverride: true,

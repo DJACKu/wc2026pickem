@@ -112,8 +112,8 @@ function MatchCard({
           <span className="text-[12px] font-bold shrink-0 tabular-nums ml-1 flex items-center gap-1" style={{ color: textColor }}>
             {score}
             {hasPenalties && (
-              <span className="text-[9px] text-[var(--paper-4)] font-normal">
-                ({penaltyScore})
+              <span className="text-[9.5px] text-[var(--paper-4)] font-normal whitespace-nowrap">
+                ({penaltyScore} tab)
               </span>
             )}
           </span>

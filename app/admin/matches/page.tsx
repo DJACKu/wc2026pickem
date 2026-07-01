@@ -336,6 +336,34 @@ function MatchAdminRow({
                 color: "var(--paper-1)",
               }}
             />
+            <span className="text-[color:var(--paper-3)] mx-1">TAB</span>
+            <input
+              name="homePenaltyScore"
+              type="number"
+              min={0}
+              placeholder="H"
+              defaultValue={match.homePenaltyScore ?? ""}
+              className="w-10 px-1 py-1 rounded-md font-mono text-[11px]"
+              style={{
+                background: "var(--ink-2)",
+                border: "1px solid var(--line-strong)",
+                color: "var(--paper-2)",
+              }}
+            />
+            <span className="text-[color:var(--paper-3)]">–</span>
+            <input
+              name="awayPenaltyScore"
+              type="number"
+              min={0}
+              placeholder="A"
+              defaultValue={match.awayPenaltyScore ?? ""}
+              className="w-10 px-1 py-1 rounded-md font-mono text-[11px]"
+              style={{
+                background: "var(--ink-2)",
+                border: "1px solid var(--line-strong)",
+                color: "var(--paper-2)",
+              }}
+            />
             <select
               name="winnerId"
               required
